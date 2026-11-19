@@ -1,0 +1,23 @@
+{
+  "name": "juice-monorepo",
+  "description": "Juice — Tactile, behavior-driven React UI blocks, micro-interactions, and procedural sound for modern products and AI agents.",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @juice-ui/bench dev",
+    "build": "pnpm --filter @juice-ui/bench build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}

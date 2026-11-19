@@ -1,0 +1,44 @@
+direction: right
+
+title: {
+  label: "Juice UI Architecture — Decoupled Craft Kit & Joplo Host Bridge"
+  near: top-center
+  shape: text
+  style.font-size: 22
+  style.bold: true
+}
+
+foundation: "1. Foundation & Tokens (@juice-ui/react)" {
+  tokens: "Concentric CSS Tokens\n(--fill-on / --fill-slab + 6-step color-mix ramp)"
+  sound: "Procedural Web Audio Synth\n(12 zero-asset oscillator + filter sounds)"
+  behaviors: "Headless Behaviors & Agent Bridge\n(ControllableState / RovingFocus / ScrubDrag / __juiceAgent)"
+}
+
+catalog: "2. Three-Pillar Component Catalog" {
+  tactile: "Tactile Micro-Interaction Blocks\n(StateButton, ScrubPanel, SlideConfirm, DynamicIsland, MorphCard, SplitCompare)"
+  workspace: "High-Density Workspace Surfaces\n(CommandPalette, ToastStack, Segmented, Kbd, Switch)"
+  ai_data: "AI & Data Narrative Blocks\n(Composer, ThinkingMorph, RollingNumber, MetricRibbon)"
+}
+
+consumers: "3. Independent Consumers" {
+  bench: "Juice Bench (apps/bench)\nInteractive Playground, Sound Pad & Inspector"
+  webapp: "Production Web & AI Apps\nDirect React Import + Agent Skill (skills/juice)"
+  joplo: "Joplo Host Adapter (Future Bridge)\nMaps data-jid, state.inputs & Engine Clock (animate=false)"
+}
+
+foundation.tokens -> catalog.tactile: "Derives light/dark & slab/solid ramps"
+foundation.tokens -> catalog.workspace: "Concentric radii (20px -> 14px -> 10px)"
+foundation.sound -> catalog.tactile: "Fires tap / latch / scrub / paid / landed cues"
+foundation.behaviors -> catalog.tactile: "Exposes controlled props & data-state slots"
+foundation.behaviors -> catalog.workspace: "Keyboard roving focus & typeahead"
+foundation.behaviors -> catalog.ai_data: "Deterministic state & digit transitions"
+
+catalog.tactile -> consumers.bench: "Live playable blocks on canvas"
+catalog.workspace -> consumers.bench: "Live inspectable state machine"
+catalog.ai_data -> consumers.bench: "Interactive streaming & number scrub"
+
+catalog.tactile -> consumers.webapp: "1:1 production components"
+catalog.ai_data -> consumers.webapp: "1:1 AI agent interfaces"
+
+foundation.behaviors -> consumers.joplo: "snapshot() / act() + controlled value props"
+foundation.tokens -> consumers.joplo: "Maps --jp-ink & --jp-surface to --fill-on & --fill-slab"

@@ -1,0 +1,943 @@
+/**
+ * Juice Design System & Concentric Token Ramp
+ *
+ * Principles:
+ * 1. Tonal Hierarchy over Border Noise: 6-step color-mix ramp derived from two variables
+ *    (--fill-on / ink and --fill-slab / card surface).
+ * 2. Dark & Solid Fill Step-Up: In dark mode or solid fill cards ([data-fill="dark"]),
+ *    quiet steps step up one notch (w6 -> w12, w12 -> w20) so contrast never collapses.
+ * 3. Concentric Geometry: Outer card 20px, padding 6px -> inner row 14px (20 - 6 = 14).
+ * 4. Storyboard-Safe Motion: [data-animate="off"] disables transitions for deterministic frames.
+ */
+
+.juice-root,
+:root {
+  --juice-font-ui: "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  --juice-font-mono: "JetBrains Mono", "SF Mono", SFMono-Regular, ui-monospace, Menlo, monospace;
+
+  /* Base Light Tokens */
+  --juice-bg: #f6f6f4;
+  --juice-canvas: #efefec;
+  --juice-card: #ffffff;
+  --juice-ink: #17181a;
+  --juice-signal: #2231dd;
+  --juice-ok: #15803d;
+  --juice-warn: #d97706;
+  --juice-danger: #dc2626;
+
+  /* Active Card Fill Context (Slab = light surface, Solid = inverted dark slab) */
+  --fill-on: var(--juice-ink);
+  --fill-slab: var(--juice-card);
+
+  /* 6-Step Tonal Ramp derived purely by color-mix */
+  --juice-soft: color-mix(in srgb, var(--fill-on) 74%, var(--fill-slab));
+  --juice-mute: color-mix(in srgb, var(--fill-on) 52%, var(--fill-slab));
+  --juice-faint: color-mix(in srgb, var(--fill-on) 34%, var(--fill-slab));
+  --juice-w4: color-mix(in srgb, var(--fill-on) 4%, var(--fill-slab));
+  --juice-w6: color-mix(in srgb, var(--fill-on) 6.5%, var(--fill-slab));
+  --juice-w12: color-mix(in srgb, var(--fill-on) 12%, var(--fill-slab));
+  --juice-w20: color-mix(in srgb, var(--fill-on) 20%, var(--fill-slab));
+  --juice-edge: color-mix(in srgb, var(--fill-on) 8%, transparent);
+
+  /* Concentric Radii & Spring Physics */
+  --juice-r-outer: 20px;
+  --juice-pad-outer: 6px;
+  --juice-r-inner: 14px;
+  --juice-r-control: 10px;
+  --juice-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --juice-pop: cubic-bezier(0.24, 1.34, 0.38, 1);
+
+  font-family: var(--juice-font-ui);
+  color: var(--juice-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.juice-root[data-theme="dark"] {
+  --juice-bg: #0a0a0b;
+  --juice-canvas: #111214;
+  --juice-card: #16171a;
+  --juice-ink: #f4f3f1;
+  --juice-signal: #5b8aff;
+  --juice-ok: #34d17a;
+  --juice-warn: #f59e0b;
+  --juice-danger: #f87171;
+  --fill-on: #f4f3f1;
+  --fill-slab: #16171a;
+}
+
+/* Solid Fill Tone (Bencho-style high-contrast dark cards even on light canvas) */
+.juice-root[data-tone="solid"] .j-slab,
+.j-slab[data-fill="dark"] {
+  --fill-on: #f4f3f1;
+  --fill-slab: #0e0f11;
+}
+
+.juice-root[data-theme="dark"][data-tone="solid"] .j-slab {
+  --fill-on: #f4f3f1;
+  --fill-slab: #202227;
+}
+
+/* Re-evaluate the 6-step color-mix ramp on every .j-slab from its local --fill-on & --fill-slab */
+.j-slab {
+  --juice-soft: color-mix(in srgb, var(--fill-on) 74%, var(--fill-slab));
+  --juice-mute: color-mix(in srgb, var(--fill-on) 52%, var(--fill-slab));
+  --juice-faint: color-mix(in srgb, var(--fill-on) 34%, var(--fill-slab));
+  --juice-w4: color-mix(in srgb, var(--fill-on) 4%, var(--fill-slab));
+  --juice-w6: color-mix(in srgb, var(--fill-on) 6.5%, var(--fill-slab));
+  --juice-w12: color-mix(in srgb, var(--fill-on) 12%, var(--fill-slab));
+  --juice-w20: color-mix(in srgb, var(--fill-on) 20%, var(--fill-slab));
+  --juice-edge: color-mix(in srgb, var(--fill-on) 8%, transparent);
+}
+
+/* In dark/solid fill, quiet steps step up one notch so rows and tracks separate cleanly */
+.juice-root[data-fill="dark"],
+.juice-root[data-fill="dark"] .j-slab,
+.juice-root[data-tone="solid"] .j-slab,
+.j-slab[data-fill="dark"] {
+  --juice-soft: color-mix(in srgb, var(--fill-on) 82%, var(--fill-slab));
+  --juice-mute: color-mix(in srgb, var(--fill-on) 60%, var(--fill-slab));
+  --juice-faint: color-mix(in srgb, var(--fill-on) 40%, var(--fill-slab));
+  --juice-w4: color-mix(in srgb, var(--fill-on) 7%, var(--fill-slab));
+  --juice-w6: color-mix(in srgb, var(--fill-on) 11%, var(--fill-slab));
+  --juice-w12: color-mix(in srgb, var(--fill-on) 18%, var(--fill-slab));
+  --juice-w20: color-mix(in srgb, var(--fill-on) 28%, var(--fill-slab));
+  --juice-edge: color-mix(in srgb, var(--fill-on) 12%, transparent);
+}
+
+/* Deterministic Snapshot Mode (Joplo Storyboard / Frame Capture) */
+.juice-root[data-animate="off"] *,
+.juice-root[data-animate="off"] *::before,
+.juice-root[data-animate="off"] *::after {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
+/* ── Shared Base Surfaces & Primitives ─────────────────────────────── */
+
+.j-slab {
+  box-sizing: border-box;
+  border-radius: var(--juice-r-outer);
+  background: var(--fill-slab);
+  color: var(--fill-on);
+  box-shadow: 0 0 0 1px var(--juice-edge), 0 8px 24px -6px rgba(0, 0, 0, 0.06);
+  padding: var(--juice-pad-outer);
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+  isolation: isolate;
+}
+
+.j-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--juice-w6);
+  box-shadow: inset 0 -1px 0 var(--juice-w12);
+  color: var(--juice-mute);
+  font-family: var(--juice-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.j-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  background: var(--juice-w6);
+  color: var(--juice-soft);
+  font-variant-numeric: tabular-nums;
+}
+.j-badge[data-tone="ok"] {
+  background: color-mix(in srgb, var(--juice-ok) 15%, var(--fill-slab));
+  color: var(--juice-ok);
+}
+.j-badge[data-tone="warn"] {
+  background: color-mix(in srgb, var(--juice-warn) 15%, var(--fill-slab));
+  color: var(--juice-warn);
+}
+.j-badge[data-tone="danger"] {
+  background: color-mix(in srgb, var(--juice-danger) 15%, var(--fill-slab));
+  color: var(--juice-danger);
+}
+.j-badge[data-tone="signal"] {
+  background: color-mix(in srgb, var(--juice-signal) 14%, var(--fill-slab));
+  color: var(--juice-signal);
+}
+
+/* Segmented Control */
+.j-seg {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 11px;
+  background: var(--juice-w6);
+}
+.j-seg-btn {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--juice-mute);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 150ms ease, background-color 150ms ease, transform 140ms var(--juice-out);
+}
+.j-seg-btn:hover {
+  color: var(--fill-on);
+}
+.j-seg-btn[data-active="true"] {
+  background: var(--fill-slab);
+  color: var(--fill-on);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--juice-edge);
+}
+.j-seg-btn:active {
+  transform: scale(0.96);
+}
+.j-seg-btn:focus-visible {
+  outline: 2px solid var(--juice-signal);
+  outline-offset: 1px;
+}
+
+/* Tactile Switch */
+.j-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 24px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 999px;
+  background: var(--juice-w12);
+  cursor: pointer;
+  transition: background-color 200ms ease, transform 140ms var(--juice-out);
+}
+.j-switch[data-checked="true"] {
+  background: var(--fill-on);
+}
+.j-switch-thumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--fill-slab);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+  transition: transform 220ms var(--juice-pop), background-color 180ms ease;
+}
+.j-switch[data-checked="true"] .j-switch-thumb {
+  transform: translateX(16px);
+}
+.j-switch:active {
+  transform: scale(0.95);
+}
+.j-switch:focus-visible {
+  outline: 2px solid var(--juice-signal);
+  outline-offset: 2px;
+}
+
+/* ── 1. StateButton (ConfirmSend / Multi-state Morph Button) ──────── */
+
+.j-state-card {
+  width: 300px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.j-state-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.j-state-amount {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.j-state-btn {
+  position: relative;
+  width: 100%;
+  height: 44px;
+  border: 0;
+  border-radius: var(--juice-r-inner);
+  background: var(--fill-on);
+  color: var(--fill-slab);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color 220ms var(--juice-out), color 200ms ease, transform 150ms var(--juice-out);
+}
+.j-state-btn:active:not(:disabled) {
+  transform: scale(0.965);
+}
+.j-state-btn[data-state="confirming"] {
+  background: var(--juice-signal);
+  color: #ffffff;
+}
+.j-state-btn[data-state="pending"] {
+  background: var(--juice-w12);
+  color: var(--juice-soft);
+  cursor: default;
+}
+.j-state-btn[data-state="success"] {
+  background: color-mix(in srgb, var(--juice-ok) 16%, var(--fill-slab));
+  color: var(--juice-ok);
+}
+.j-state-btn[data-state="error"] {
+  background: color-mix(in srgb, var(--juice-danger) 16%, var(--fill-slab));
+  color: var(--juice-danger);
+}
+.j-state-btn:focus-visible {
+  outline: 2px solid var(--juice-signal);
+  outline-offset: 2px;
+}
+
+/* ── 2. ScrubPanel (Bencho PathPanel Concentric Scrub Rows) ──────── */
+
+.j-scrub-panel {
+  width: 304px;
+}
+.j-scrub-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.j-scrub-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: var(--juice-r-inner);
+  overflow: hidden;
+  background: var(--juice-w6);
+  font: inherit;
+  color: var(--fill-on);
+  text-align: left;
+  cursor: pointer;
+  touch-action: none;
+  transition: background-color 150ms ease, transform 150ms var(--juice-out);
+}
+.j-scrub-row[data-kind="slider"] {
+  cursor: ew-resize;
+}
+.j-scrub-row:active {
+  transform: scale(0.99);
+}
+.j-scrub-row:focus-visible {
+  outline: 2px solid var(--juice-signal);
+  outline-offset: -2px;
+}
+.j-scrub-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--juice-r-inner);
+  background: var(--juice-w12);
+  transition: width 110ms var(--juice-out), background-color 150ms ease;
+  pointer-events: none;
+}
+.j-scrub-row[data-held="true"] .j-scrub-fill {
+  background: var(--juice-w20);
+  transition: background-color 150ms ease;
+}
+.j-scrub-label {
+  position: relative;
+  z-index: 1;
+  font-size: 13.5px;
+  color: var(--juice-soft);
+  letter-spacing: -0.01em;
+}
+.j-scrub-dots {
+  position: absolute;
+  left: 100px;
+  right: 68px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 1;
+}
+.j-scrub-dots i {
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--juice-faint);
+}
+.j-scrub-value {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--fill-on);
+  font-variant-numeric: tabular-nums;
+}
+.j-swatch-group {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.j-swatch-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 160ms var(--juice-pop), box-shadow 160ms ease;
+}
+.j-swatch-dot[data-active="true"] {
+  transform: scale(1.16);
+  box-shadow: 0 0 0 2px var(--fill-slab), 0 0 0 3.5px var(--fill-on);
+}
+
+/* ── 3. SlideConfirm (WakeSlider / Drag-to-Commit Track) ─────────── */
+
+.j-slide-wrap {
+  width: 304px;
+  padding: 6px;
+}
+.j-slide-track {
+  position: relative;
+  height: 50px;
+  border-radius: var(--juice-r-inner);
+  background: var(--juice-w6);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+  touch-action: none;
+}
+.j-slide-track[data-confirmed="true"] {
+  background: color-mix(in srgb, var(--juice-ok) 15%, var(--fill-slab));
+}
+.j-slide-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--juice-w12);
+  border-radius: var(--juice-r-inner);
+  pointer-events: none;
+}
+.j-slide-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--juice-mute);
+  letter-spacing: -0.01em;
+  pointer-events: none;
+  transition: opacity 160ms ease, color 160ms ease;
+}
+.j-slide-track[data-confirmed="true"] .j-slide-label {
+  color: var(--juice-ok);
+  font-weight: 600;
+}
+.j-slide-thumb {
+  position: relative;
+  z-index: 2;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  border: 0;
+  background: var(--fill-on);
+  color: var(--fill-slab);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+  transition: transform 200ms var(--juice-out), background-color 180ms ease;
+}
+.j-slide-thumb[data-dragging="true"] {
+  cursor: grabbing;
+  transition: none;
+}
+.j-slide-track[data-confirmed="true"] .j-slide-thumb {
+  background: var(--juice-ok);
+  color: #ffffff;
+}
+
+/* ── 4. DynamicIsland (Multi-mode Morphing Capsule) ──────────────── */
+
+.j-island-stage {
+  width: 312px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.j-island {
+  background: #0e0f12;
+  color: #f4f3f1;
+  border-radius: 26px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 14px 32px -8px rgba(0, 0, 0, 0.36);
+  overflow: hidden;
+  transition: width 300ms var(--juice-pop), border-radius 300ms var(--juice-pop), padding 260ms var(--juice-out);
+  cursor: pointer;
+}
+.j-island[data-mode="compact"] {
+  width: 196px;
+  padding: 8px 14px;
+  border-radius: 999px;
+}
+.j-island[data-mode="active"] {
+  width: 248px;
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+.j-island[data-mode="expanded"] {
+  width: 298px;
+  padding: 14px 16px;
+  border-radius: 24px;
+  cursor: default;
+}
+.j-wave-bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 16px;
+}
+.j-wave-bar {
+  width: 2.5px;
+  border-radius: 99px;
+  background: #34d17a;
+  /* Static base height guarantees screenshots at t=0 look alive! */
+  transform-origin: center;
+  animation: j-wave-pulse 1.1s ease-in-out infinite alternate;
+}
+@keyframes j-wave-pulse {
+  from {
+    transform: scaleY(0.65);
+  }
+  to {
+    transform: scaleY(1.25);
+  }
+}
+
+/* ── 5. MorphCard (In-Place Expansion without Modal Interruption) ── */
+
+.j-morph-card {
+  width: 304px;
+  transition: padding 240ms var(--juice-out), box-shadow 240ms var(--juice-out);
+}
+.j-morph-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--juice-r-inner);
+  background: var(--juice-w6);
+  color: var(--fill-on);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 150ms ease;
+}
+.j-morph-summary:hover {
+  background: var(--juice-w12);
+}
+.j-morph-detail {
+  padding: 12px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: j-morph-reveal 220ms var(--juice-out) both;
+}
+@keyframes j-morph-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── 6 & 7. RollingNumber & MetricRibbon (IncomeFlow / Data Story) ── */
+
+.j-rolling-num {
+  display: inline-flex;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+.j-rolling-digit-col {
+  display: inline-block;
+  height: 1.15em;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.j-rolling-digit-ribbon {
+  display: flex;
+  flex-direction: column;
+  transition: transform 320ms var(--juice-out);
+}
+.j-rolling-digit-ribbon span {
+  height: 1.15em;
+  line-height: 1.15em;
+  display: block;
+}
+
+.j-metric-card {
+  width: 312px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.j-metric-bars {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  height: 76px;
+  align-items: end;
+  padding-top: 8px;
+}
+.j-metric-bar-btn {
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.j-metric-bar-fill {
+  width: 100%;
+  border-radius: 8px;
+  background: var(--juice-w12);
+  transition: height 240ms var(--juice-out), background-color 150ms ease;
+}
+.j-metric-bar-btn:hover .j-metric-bar-fill {
+  background: var(--juice-w20);
+}
+.j-metric-bar-btn[data-active="true"] .j-metric-bar-fill {
+  background: var(--fill-on);
+}
+.j-metric-bar-label {
+  font-size: 11px;
+  color: var(--juice-mute);
+  font-variant-numeric: tabular-nums;
+}
+.j-metric-bar-btn[data-active="true"] .j-metric-bar-label {
+  color: var(--fill-on);
+  font-weight: 600;
+}
+
+/* ── 8. Composer (AI Multi-Modal Prompt Input + Context Meter) ───── */
+
+.j-composer {
+  width: 328px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.j-composer-textarea {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  resize: none;
+  background: transparent;
+  color: var(--fill-on);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+  padding: 2px 4px;
+  outline: none;
+}
+.j-composer-textarea::placeholder {
+  color: var(--juice-faint);
+}
+.j-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.j-composer-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.j-chip {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 8px;
+  border: 0;
+  background: var(--juice-w6);
+  color: var(--juice-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, transform 140ms var(--juice-out);
+}
+.j-chip:hover {
+  background: var(--juice-w12);
+  color: var(--fill-on);
+}
+.j-chip:active {
+  transform: scale(0.95);
+}
+.j-send-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--fill-on);
+  color: var(--fill-slab);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 150ms var(--juice-out), opacity 150ms ease;
+}
+.j-send-circle:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+.j-send-circle:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* ── 9. ThinkingMorph (Agent Reasoning -> Tool Call -> Artifact) ─── */
+
+.j-thinking-card {
+  width: 328px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.j-thinking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--juice-w6);
+  color: var(--fill-on);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.j-thinking-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 6px;
+}
+.j-thinking-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  color: var(--juice-soft);
+}
+.j-thinking-step[data-status="running"] {
+  background: var(--juice-w6);
+  color: var(--fill-on);
+}
+.j-artifact-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--juice-w6);
+  border: 1px solid var(--juice-edge);
+}
+
+/* ── 10. CommandPalette (Roving Focus + Instant Filter) ──────────── */
+
+.j-cmd {
+  width: 320px;
+  padding: 6px;
+}
+.j-cmd-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: var(--juice-w6);
+  margin-bottom: 6px;
+}
+.j-cmd-input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--fill-on);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.j-cmd-input::placeholder {
+  color: var(--juice-faint);
+}
+.j-cmd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.j-cmd-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--juice-soft);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 110ms ease, color 110ms ease;
+}
+.j-cmd-item[data-highlighted="true"] {
+  background: var(--juice-w12);
+  color: var(--fill-on);
+}
+
+/* ── 11. ToastStack (Sonner-style Z-Axis Layered Stack) ──────────── */
+
+.j-toast-stage {
+  width: 312px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.j-toast-stack {
+  position: relative;
+  height: 118px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.j-toast-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: var(--fill-slab);
+  color: var(--fill-on);
+  box-shadow: 0 0 0 1px var(--juice-edge), 0 8px 20px -4px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: transform 240ms var(--juice-out), opacity 220ms ease;
+}
+
+/* ── 12. SplitCompare (Before / After Drag & Keyboard Handle) ─────── */
+
+.j-split-card {
+  width: 312px;
+  padding: 6px;
+}
+.j-split-viewport {
+  position: relative;
+  height: 168px;
+  border-radius: var(--juice-r-inner);
+  overflow: hidden;
+  background: var(--juice-w6);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.j-split-pane {
+  position: absolute;
+  inset: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+.j-split-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--fill-on);
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+.j-split-knob {
+  position: absolute;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--fill-on);
+  color: var(--fill-slab);
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
