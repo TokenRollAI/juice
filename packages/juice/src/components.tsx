@@ -23,7 +23,6 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
-  Sparkles,
   Terminal,
   Undo2,
   Volume2,
@@ -977,7 +976,7 @@ export function MorphCard({
             <Zap size={15} />
           </div>
           <div>
-            <div style={{ fontSize: 13.5, fontWeight: 600 }}>Spend Cap · Edge Workers</div>
+            <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>Spend Cap · Edge Workers</div>
             <div style={{ fontSize: 12, color: 'var(--juice-mute)' }}>
               {savedNotice ? 'Updated just now' : 'Click to morph inline inspector'}
             </div>
@@ -1677,7 +1676,7 @@ export function SplitCompare({
             }}
           >
             <span style={{ fontSize: 13 }}>Boxy 1px border card</span>
-            <span style={{ fontSize: 14 }}>99.4%</span>
+            <span style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>99.4%</span>
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--juice-mute)' }}>Drag handle to compare →</div>
         </div>

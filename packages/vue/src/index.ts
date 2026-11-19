@@ -21,12 +21,13 @@ import {
   registerJuiceAgentNode,
   setJuiceSoundEnabled,
   subscribeJuiceSound,
-  type ActionButtonStage,
-  type IslandMode,
   type JuiceFill,
   type JuiceSoundName,
   type JuiceTheme,
-} from '@juice-ui/react';
+} from '@tokenroll/juice/core';
+
+export type ActionButtonStage = 'idle' | 'confirming' | 'pending' | 'success' | 'error';
+export type IslandMode = 'compact' | 'active' | 'expanded';
 
 export {
   JUICE_SOUND_CATALOG,
@@ -35,9 +36,9 @@ export {
   registerJuiceAgentNode,
   setJuiceSoundEnabled,
   unregisterJuiceAgentNode,
-} from '@juice-ui/react';
+} from '@tokenroll/juice/core';
 
-export type { JuiceFill, JuiceSoundName, JuiceTheme } from '@juice-ui/react';
+export type { JuiceFill, JuiceSoundName, JuiceTheme } from '@tokenroll/juice/core';
 
 function useModel<T>(readProp: () => T | undefined, initial: T, emit: (value: T) => void): WritableComputedRef<T> {
   const internal = shallowRef(initial);

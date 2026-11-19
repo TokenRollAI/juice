@@ -1,15 +1,55 @@
 {
-  "name": "@juice-ui/vue",
-  "version": "0.2.0",
+  "name": "@tokenroll/juice-vue",
+  "version": "0.1.0",
   "description": "Vue 3 tactile UI components, micro-interactions, headless composables, and AI agent blocks for Juice UI.",
   "license": "MIT",
   "type": "module",
+  "homepage": "https://juice.tokenroll.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TokenRollAI/juice.git",
+    "directory": "packages/vue"
+  },
+  "bugs": {
+    "url": "https://github.com/TokenRollAI/juice/issues"
+  },
+  "keywords": [
+    "vue",
+    "vue3",
+    "ui",
+    "components",
+    "design-system",
+    "ai-components",
+    "agent-ui",
+    "micro-interactions",
+    "tokenroll"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./styles.css": "../juice/src/styles.css"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && node ../../scripts/bundle-css.mjs",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "dependencies": {
-    "@juice-ui/react": "workspace:*",
+    "@tokenroll/juice": "workspace:*",
     "clsx": "2.1.1"
   },
   "peerDependencies": {

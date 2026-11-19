@@ -1,5 +1,5 @@
 {
-  "name": "@juice-ui/bench",
+  "name": "@tokenroll/juice-site",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "preview": "vite preview --port 4320"
   },
   "dependencies": {
-    "@juice-ui/react": "workspace:*",
+    "@tokenroll/juice": "workspace:*",
     "clsx": "2.1.1",
     "lucide-react": "1.66.0",
     "motion": "14.9.1",

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createRenderer, createSSRApp, defineComponent, h, nextTick, ref } from 'vue';
 import { renderToString } from 'vue/server-renderer';
-import type { JuiceAgentBridge } from '@juice-ui/react';
+import type { JuiceAgentBridge } from '@tokenroll/juice/core';
 
 let juice: typeof import('../src/index.ts');
 const browser: { __juiceAgent?: JuiceAgentBridge } = {};
@@ -123,7 +123,7 @@ describe('@juice-ui/vue Agent Bridge', () => {
   }
 
   it('re-exports the shared bridge and sound runtime', async () => {
-    const react = await import('@juice-ui/react');
+    const react = await import('@tokenroll/juice');
     expect(juice.JUICE_SOUND_CATALOG).toBe(react.JUICE_SOUND_CATALOG);
     expect(juice.playJuiceSound).toBe(react.playJuiceSound);
     expect(juice.registerJuiceAgentNode).toBe(react.registerJuiceAgentNode);

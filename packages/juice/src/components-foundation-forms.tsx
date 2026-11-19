@@ -100,7 +100,7 @@ export function IconButton({
 }
 
 type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'defaultValue' | 'onChange' | 'prefix'> & {
-  label: string;
+  label?: string;
   hint?: ReactNode;
   error?: string;
   value?: string;
@@ -147,9 +147,11 @@ export function TextField({
   return (
     <div className="j-field">
       <FieldSurfaceStyles />
-      <div className="j-field-label-row">
-        <label htmlFor={inputId}>{label}</label>
-      </div>
+      {label && (
+        <div className="j-field-label-row">
+          <label htmlFor={inputId}>{label}</label>
+        </div>
+      )}
       <div className="j-input-box" style={{ opacity: disabled ? 0.55 : undefined }} data-invalid={invalid && invalid !== 'false' ? true : undefined}>
         {prefix}
         <input
@@ -166,7 +168,7 @@ export function TextField({
         />
         {suffix}
         {clearable && value && !disabled && !readOnly && (
-          <IconButton label={`Clear ${label}`} variant="ghost" size="xs" onClick={() => {
+          <IconButton label={`Clear ${label ?? rest['aria-label'] ?? 'input'}`} variant="ghost" size="xs" onClick={() => {
             setValue('');
             inputRef.current?.focus();
           }}>

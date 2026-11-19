@@ -184,7 +184,7 @@ importers:
 
   apps/bench:
     dependencies:
-      '@juice-ui/react':
+      '@tokenroll/juice':
         specifier: workspace:*
         version: link:../../packages/juice
       clsx:
@@ -246,7 +246,7 @@ importers:
 
   packages/vue:
     dependencies:
-      '@juice-ui/react':
+      '@tokenroll/juice':
         specifier: workspace:*
         version: link:../juice
       clsx:

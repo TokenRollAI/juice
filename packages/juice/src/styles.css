@@ -25,9 +25,12 @@
   --juice-card: #ffffff;
   --juice-ink: #17181a;
   --juice-signal: #2231dd;
+  --juice-on-signal: #ffffff;
   --juice-ok: #15803d;
+  --juice-on-ok: #ffffff;
   --juice-warn: #d97706;
   --juice-danger: #dc2626;
+  --juice-recessed: #121316;
 
   /* Active Card Fill Context (Slab = light surface, Solid = inverted dark slab) */
   --fill-on: var(--juice-ink);
@@ -62,9 +65,12 @@
   --juice-card: #16171a;
   --juice-ink: #f4f3f1;
   --juice-signal: #5b8aff;
+  --juice-on-signal: #ffffff;
   --juice-ok: #34d17a;
+  --juice-on-ok: #08170e;
   --juice-warn: #f59e0b;
   --juice-danger: #f87171;
+  --juice-recessed: #08090b;
   --fill-on: #f4f3f1;
   --fill-slab: #16171a;
 }
@@ -111,7 +117,10 @@
 /* Deterministic Snapshot Mode (Joplo Storyboard / Frame Capture) */
 .juice-root[data-animate="off"] *,
 .juice-root[data-animate="off"] *::before,
-.juice-root[data-animate="off"] *::after {
+.juice-root[data-animate="off"] *::after,
+.juice-root[data-animate="false"] *,
+.juice-root[data-animate="false"] *::before,
+.juice-root[data-animate="false"] *::after {
   transition-duration: 0ms !important;
   animation-duration: 0ms !important;
 }
@@ -391,7 +400,7 @@
 }
 .j-state-btn[data-state="confirming"] {
   background: var(--juice-signal);
-  color: #ffffff;
+  color: var(--juice-on-signal);
 }
 .j-state-btn[data-state="pending"] {
   background: var(--juice-w12);
@@ -590,7 +599,7 @@
 }
 .j-slide-track[data-confirmed="true"] .j-slide-thumb {
   background: var(--juice-ok);
-  color: #ffffff;
+  color: var(--juice-on-ok);
 }
 
 /* ── 4. DynamicIsland (Multi-mode Morphing Capsule — Zero Corner Glitch) ── */
@@ -641,7 +650,7 @@
 .j-wave-bar {
   width: 2.5px;
   border-radius: 99px;
-  background: #34d17a;
+  background: var(--juice-ok);
   /* Static base height guarantees screenshots at t=0 look alive! */
   transform-origin: center;
   animation: j-wave-pulse 1.1s ease-in-out infinite alternate;
@@ -914,9 +923,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--juice-r-inner);
   background: var(--juice-w6);
-  border: 1px solid var(--juice-edge);
 }
 
 /* ── 10. CommandPalette (Roving Focus + Instant Filter) ──────────── */
@@ -1297,7 +1305,7 @@
 .j-sel-tool:hover,
 .j-sel-tool[data-active="true"] {
   opacity: 1;
-  background: rgba(128, 128, 128, 0.24);
+  background: color-mix(in srgb, var(--fill-slab) 18%, transparent);
 }
 
 /* ── 19. DataGrid (High-Density Inline-Edit Operator Table) ─────── */
@@ -1459,7 +1467,7 @@
   position: relative;
   height: 176px;
   border-radius: 14px;
-  background: #0e0f12;
+  background: var(--juice-recessed);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1489,7 +1497,7 @@
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--juice-edge);
   padding: 8px 14px 12px;
   transform: translateY(102%);
-  transition: transform 260ms var(--juice-pop);
+  transition: transform 260ms var(--juice-out);
 }
 .j-drawer-viewport[data-open="true"] .j-drawer-sheet {
   transform: translateY(0%);
@@ -1610,7 +1618,7 @@
   }
 }
 
-/* Unified 320px Card Width Rhythm across all Bench blocks */
+/* Unified 320px Card Width Rhythm across all Bench blocks (fluid on narrow viewports) */
 .j-state-card,
 .j-scrub-panel,
 .j-slide-wrap,
@@ -1638,15 +1646,18 @@
 .j-diff-card,
 .j-skel-card,
 .j-transfer-card,
-.j-ai-card {
-  width: 320px !important;
+.j-ai-card,
+.j-fnd-card {
+  width: 320px;
+  max-width: 100%;
 }
 
 /* ── 28. TransferList (Dual-Bucket Source Connector Transfer) ───── */
 
 
 .j-transfer-card {
-  width: 328px;
+  width: 320px;
+  max-width: 100%;
   padding: 10px;
   display: flex;
   flex-direction: column;

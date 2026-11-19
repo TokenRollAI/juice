@@ -6,6 +6,7 @@
 
 .j-ai-card {
   width: 320px;
+  max-width: 100%;
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -144,7 +145,7 @@
 .j-cite-pill[data-active="true"],
 .j-cite-pill:hover {
   background: var(--juice-signal);
-  color: #ffffff;
+  color: var(--juice-on-signal);
   transform: translateY(-1px);
 }
 

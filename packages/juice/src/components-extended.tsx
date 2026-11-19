@@ -19,7 +19,6 @@ import {
   Plus,
   RefreshCw,
   Scissors,
-  Sparkles,
   Trash2,
   Undo2,
   X,
@@ -97,7 +96,7 @@ export function OtpField({
     <div id={id} className="j-slab j-otp-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 13.5, fontWeight: 600 }}>2FA Security Code</div>
+          <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>2FA Security Code</div>
           <div style={{ fontSize: 11.5, color: 'var(--juice-mute)' }}>Sent to device · Auto-verifies on 6th digit</div>
         </div>
         <Badge tone={isComplete ? 'ok' : 'neutral'}>{isComplete ? 'Verified' : `${code.length}/6`}</Badge>
@@ -567,8 +566,8 @@ export function SwipeCard({ id = 'swipe-card' }: { id?: string }) {
               }}
               style={{
                 border: 0,
-                background: 'var(--juice-ok)',
-                color: '#fff',
+                background: 'color-mix(in srgb, var(--juice-ok) 18%, var(--fill-slab))',
+                color: 'var(--juice-ok)',
                 borderRadius: 8,
                 padding: '4px 9px',
                 fontSize: 11.5,
@@ -586,8 +585,8 @@ export function SwipeCard({ id = 'swipe-card' }: { id?: string }) {
               }}
               style={{
                 border: 0,
-                background: 'var(--juice-danger)',
-                color: '#fff',
+                background: 'color-mix(in srgb, var(--juice-danger) 18%, var(--fill-slab))',
+                color: 'var(--juice-danger)',
                 borderRadius: 8,
                 padding: '4px 9px',
                 fontSize: 11.5,
@@ -1565,7 +1564,7 @@ export function SkeletonMorph({
               CF
             </div>
             <div>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Workers Production Cluster</div>
+              <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>Workers Production Cluster</div>
               <div style={{ fontSize: 11.5, color: 'var(--juice-mute)' }}>310 edge locations · 0 cold starts</div>
             </div>
           </div>

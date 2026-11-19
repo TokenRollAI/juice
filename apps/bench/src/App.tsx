@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   AccordionKit,
   AdaptiveToolbarKit,
@@ -14,6 +14,7 @@ import {
   BackgroundTaskMenu,
   Badge,
   BreadcrumbDropdownBar,
+  Button,
   ButtonKit,
   CheckboxGroupKit,
   ChoiceCards,
@@ -83,6 +84,7 @@ import {
   TabsMorph,
   TagCalendarKit,
   TerminalStreamCard,
+  TextField,
   ThinkingMorph,
   TimeSlotPicker,
   ToastStack,
@@ -95,8 +97,9 @@ import {
   VoiceOrbSession,
   type JuiceAgentBridge,
   type JuiceSoundName,
-} from '@juice-ui/react';
+} from '@tokenroll/juice';
 import {
+  ArrowUpRight,
   Check,
   Code2,
   Copy,
@@ -110,6 +113,14 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import {
+  GetStartedView,
+  PrimitivesApiView,
+  QuickInstallRibbon,
+  QuickJumpModal,
+  TokensSoundLabView,
+  type SiteSection,
+} from './site-views.tsx';
 
 type GestureCategory = 'all' | 'foundation' | 'ai' | 'press' | 'drag' | 'hover' | 'workspace';
 
@@ -150,7 +161,7 @@ function deriveVueSnippet(block: BlockSpec): string {
   }
   // Convert JSX prop={val} to Vue :prop="val"
   sfc = sfc.replace(/(\w+)=\{([^}]+)\}/g, ':$1="$2"');
-  return `<script setup lang="ts">\nimport { JProvider } from '@juice-ui/vue';\nimport '@juice-ui/vue/styles.css';\n</script>\n\n<template>\n  <JProvider>\n    ${sfc.split('\n').join('\n    ')}\n  </JProvider>\n</template>`;
+  return `<script setup lang="ts">\nimport { JProvider } from '@tokenroll/juice-vue';\nimport '@tokenroll/juice-vue/styles.css';\n</script>\n\n<template>\n  <JProvider>\n    ${sfc.split('\n').join('\n    ')}\n  </JProvider>\n</template>`;
 }
 
 const BLOCK_CATALOG: BlockSpec[] = [
@@ -361,7 +372,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: '← Prev Page', action: 'prevPage' },
       { label: 'Jump to Page 4', action: 'setPage', payload: 4 },
     ],
-    reactCode: `<Breadcrumbs segments={['Workspace', 'Packages', '@juice-ui']} current="react" />\n<Pagination page={1} pageCount={5} onChange={setPage} />`,
+    reactCode: `<Breadcrumbs segments={['Workspace', 'Packages', '@tokenroll']} current="juice" />\n<Pagination page={1} pageCount={5} onChange={setPage} />`,
     joploCode: `flow('Page through package directory', { start: '/packages' })\n  .click('nav-pagination', 'Advance to page 2')`,
     render: () => <NavPagination id="nav-pagination" />,
   },
@@ -1578,13 +1589,38 @@ function OdometerPlayground() {
 
 function BenchInner() {
   const { theme, fill, sound, animate, setTheme, setFill, setSound, setAnimate } = useJuice();
+  const [section, setSection] = useState<SiteSection>('playground');
+  const [quickJumpOpen, setQuickJumpOpen] = useState<boolean>(false);
   const [category, setCategory] = useState<GestureCategory>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string>('slash-mention-composer');
-  const [showSoundStrip, setShowSoundStrip] = useState<boolean>(true);
+  const [showSoundStrip, setShowSoundStrip] = useState<boolean>(false);
   const [codeTab, setCodeTab] = useState<'react' | 'vue' | 'joplo'>('react');
   const [copied, setCopied] = useState<boolean>(false);
   const [agentTick, setAgentTick] = useState<number>(0);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setQuickJumpOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const jumpToBlock = (blockId: string) => {
+    setSection('playground');
+    setCategory('all');
+    setSearchQuery('');
+    setSelectedId(blockId);
+    setAgentTick((t) => t + 1);
+    window.setTimeout(() => {
+      const el = document.querySelector(`[data-block-cell="${blockId}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+  };
 
   const counts = useMemo(() => {
     const map: Record<GestureCategory, number> = {
@@ -1649,23 +1685,59 @@ function BenchInner() {
 
   return (
     <div className="bench-shell">
-      {/* Sticky Header */}
+      {/* Sticky Official Site Header — Built with Juice UI Components */}
       <header className="bench-topbar">
         <div className="bench-topbar-inner">
-          <div className="bench-brand">
+          <button
+            type="button"
+            className="bench-brand"
+            onClick={() => {
+              playJuiceSound('tap');
+              setSection('playground');
+            }}
+          >
             <div className="bench-logo">J</div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="bench-title">Juice</span>
-                <Badge tone="neutral">v0.4 · {BLOCK_CATALOG.length} Blocks · React &amp; Vue 3</Badge>
+                <span className="bench-title">Juice UI</span>
+                <Badge tone="neutral">@tokenroll/juice · v0.1</Badge>
               </div>
               <div className="bench-subtitle">
-                Concentric Color-Mix UI · Radix + Base UI + AI Agents + Studio Workbench · 3KB Web Audio Synth
+                Tactile React &amp; Vue 3 Primitives · AI Agents · 3KB Web Audio Synth
               </div>
             </div>
-          </div>
+          </button>
+
+          {/* Primary 4-Section Navigation */}
+          <SegmentedControl<SiteSection>
+            options={[
+              { value: 'playground', label: `Playground (${BLOCK_CATALOG.length})` },
+              { value: 'docs', label: 'Get Started' },
+              { value: 'api', label: 'API (182)' },
+              { value: 'tokens', label: 'Tokens & Sound' },
+            ]}
+            value={section}
+            onChange={(next) => {
+              playJuiceSound('tap');
+              setSection(next);
+            }}
+          />
 
           <div className="bench-controls">
+            {/* Global Cmd+K Quick Jump */}
+            <Button
+              size="sm"
+              variant="secondary"
+              leftIcon={<Search size={13} />}
+              rightIcon={<Kbd>⌘K</Kbd>}
+              onClick={() => {
+                playJuiceSound('tap');
+                setQuickJumpOpen(true);
+              }}
+            >
+              Jump
+            </Button>
+
             {/* Fill Tone: Slab vs Solid */}
             <SegmentedControl
               options={[
@@ -1680,63 +1752,53 @@ function BenchInner() {
             <SegmentedControl
               options={[
                 { value: 'spring', label: 'Spring' },
-                { value: 'static', label: 'Static Frame' },
+                { value: 'static', label: 'Static' },
               ]}
               value={animate ? 'spring' : 'static'}
               onChange={(v) => setAnimate(v === 'spring')}
             />
 
-            {/* Sound Synth Strip Toggle */}
-            <button
-              type="button"
-              className="j-chip"
-              onClick={() => {
-                playJuiceSound('tap', true);
-                setShowSoundStrip((s) => !s);
-              }}
-              style={{
-                height: 32,
-                padding: '0 11px',
-                background: showSoundStrip ? 'var(--juice-ink)' : 'var(--juice-w6)',
-                color: showSoundStrip ? 'var(--juice-bg)' : 'var(--juice-ink)',
-              }}
-            >
-              <Volume2 size={14} />
-              <span>Synth Pad (12)</span>
-            </button>
-
             {/* Mute / Unmute */}
-            <button
-              type="button"
-              className="j-chip"
+            <Button
+              size="sm"
+              variant="ghost"
               aria-label={sound ? 'Mute UI sounds' : 'Enable UI sounds'}
+              leftIcon={sound ? <Volume2 size={14} /> : <VolumeX size={14} />}
               onClick={() => setSound(!sound)}
-              style={{ height: 32, padding: '0 10px' }}
             >
-              {sound ? <Volume2 size={14} /> : <VolumeX size={14} />}
-              <span>{sound ? 'Audio On' : 'Muted'}</span>
-            </button>
+              {sound ? 'Audio' : 'Muted'}
+            </Button>
 
             {/* Light / Dark Theme */}
-            <button
-              type="button"
-              className="j-chip"
+            <Button
+              size="sm"
+              variant="ghost"
               aria-label="Toggle color theme"
+              leftIcon={theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
               onClick={() => {
                 playJuiceSound('tap');
                 setTheme(theme === 'light' ? 'dark' : 'light');
               }}
-              style={{ height: 32, padding: '0 11px' }}
             >
-              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
-              <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
-            </button>
+              {theme === 'light' ? 'Dark' : 'Light'}
+            </Button>
+
+            <a
+              className="site-gh-link"
+              href="https://github.com/TokenRollAI/juice"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button size="sm" variant="outline" rightIcon={<ArrowUpRight size={13} />}>
+                GitHub
+              </Button>
+            </a>
           </div>
         </div>
       </header>
 
-      {/* Expandable Procedural Web Audio Synth Pad Strip */}
-      {showSoundStrip && (
+      {/* Expandable Procedural Web Audio Synth Pad Strip (Playground quick toggle) */}
+      {section === 'playground' && showSoundStrip && (
         <section className="bench-sound-strip" aria-label="Procedural Web Audio Sound Synthesizer">
           <div className="bench-sound-strip-inner">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1766,227 +1828,256 @@ function BenchInner() {
         </section>
       )}
 
-      {/* Main Workspace: Filter Bar + Live Block Grid + Lateral Inspector */}
-      <div className="bench-workspace">
-        <main className="bench-main">
-          <div className="bench-filter-bar">
-            <SegmentedControl<GestureCategory>
-              options={[
-                { value: 'all', label: `All (${counts.all})` },
-                { value: 'foundation', label: `Foundation (${counts.foundation})` },
-                { value: 'ai', label: `AI & Agents (${counts.ai})` },
-                { value: 'press', label: `Press (${counts.press})` },
-                { value: 'drag', label: `Drag (${counts.drag})` },
-                { value: 'hover', label: `Hover & Type (${counts.hover})` },
-                { value: 'workspace', label: `Workspace (${counts.workspace})` },
-              ]}
-              value={category}
-              onChange={setCategory}
-            />
+      {/* Section 1: Playground (86 Live Interactive Blocks) */}
+      {section === 'playground' && (
+        <>
+          <QuickInstallRibbon blockCount={BLOCK_CATALOG.length} onOpenDocs={() => setSection('docs')} />
 
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                height: 32,
-                padding: '0 10px',
-                borderRadius: 10,
-                background: 'var(--juice-w6)',
-                minWidth: 210,
-              }}
-            >
-              <Search size={13} style={{ color: 'var(--juice-mute)' }} />
-              <input
-                type="text"
-                aria-label="Filter blocks"
-                placeholder={`Filter ${BLOCK_CATALOG.length} blocks…`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  border: 0,
-                  background: 'transparent',
-                  color: 'var(--juice-ink)',
-                  font: 'inherit',
-                  fontSize: 12.5,
-                  outline: 'none',
-                  width: '100%',
-                }}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  style={{
-                    border: 0,
-                    background: 'transparent',
-                    color: 'var(--juice-mute)',
-                    cursor: 'pointer',
-                    fontSize: 11,
-                  }}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
+          <div className="bench-workspace">
+            <main className="bench-main">
+              <div className="bench-filter-bar">
+                <SegmentedControl<GestureCategory>
+                  options={[
+                    { value: 'all', label: `All (${counts.all})` },
+                    { value: 'foundation', label: `Foundation (${counts.foundation})` },
+                    { value: 'ai', label: `AI & Agents (${counts.ai})` },
+                    { value: 'press', label: `Press (${counts.press})` },
+                    { value: 'drag', label: `Drag (${counts.drag})` },
+                    { value: 'hover', label: `Hover & Type (${counts.hover})` },
+                    { value: 'workspace', label: `Workspace (${counts.workspace})` },
+                  ]}
+                  value={category}
+                  onChange={setCategory}
+                />
 
-          <div className="bench-grid">
-            {filteredBlocks.map((block) => {
-              const isSelected = block.id === selectedBlock.id;
-              return (
-                <article
-                  key={block.id}
-                  className="bench-cell"
-                  data-selected={isSelected ? 'true' : undefined}
-                  onClick={() => setAgentTick((t) => t + 1)}
-                >
-                  <div className="bench-cell-stage">{block.render()}</div>
-
-                  <div className="bench-cell-footer">
-                    <div>
-                      <div className="bench-cell-name">{block.name}</div>
-                      <div className="bench-cell-gesture">{block.gestureLabel}</div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {block.sounds.slice(0, 2).map((snd) => (
-                        <button
-                          key={snd}
-                          type="button"
-                          className="j-chip"
-                          title={`Audition ${snd} sound`}
-                          style={{ height: 24, padding: '0 7px', fontSize: 11 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            playJuiceSound(snd, true);
-                          }}
-                        >
-                          <Volume2 size={11} />
-                          <span>{snd}</span>
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="bench-inspect-btn"
-                        data-active={isSelected ? 'true' : undefined}
-                        onClick={() => {
-                          playJuiceSound('tap');
-                          setSelectedId(block.id);
-                          setAgentTick((t) => t + 1);
-                        }}
-                      >
-                        <Sliders size={12} />
-                        <span>Inspect</span>
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </main>
-
-        {/* Non-blocking Contextual Lateral Inspector */}
-        <aside className="bench-inspector" aria-label="Component & Agent Bridge Inspector">
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 16, fontWeight: 650, letterSpacing: '-0.02em' }}>
-                  {selectedBlock.name}
-                </span>
-                <Badge tone="neutral">{selectedBlock.gestureLabel}</Badge>
-              </div>
-              <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--juice-mute)', lineHeight: 1.45 }}>
-                {selectedBlock.summary}
-              </p>
-            </div>
-          </div>
-
-          {/* 1. Agent Bridge & Joplo Programmatic Driver */}
-          {selectedBlock.agentActions.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, fontWeight: 600 }}>
-                  Agent &amp; Joplo Step Driver (<Kbd>act()</Kbd>)
-                </span>
-                <span style={{ fontSize: 11, color: 'var(--juice-mute)' }}>Programmatic control</span>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {selectedBlock.agentActions.map((actItem) => (
-                  <button
-                    key={actItem.label}
-                    type="button"
-                    className="j-chip"
-                    onClick={() => triggerAgentAction(actItem.action, actItem.payload)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Button
+                    size="sm"
+                    variant={showSoundStrip ? 'primary' : 'secondary'}
+                    leftIcon={<Volume2 size={13} />}
+                    onClick={() => {
+                      playJuiceSound('tap', true);
+                      setShowSoundStrip((s) => !s);
+                    }}
                   >
-                    <Play size={11} />
-                    <span>{actItem.label}</span>
-                  </button>
-                ))}
-              </div>
-              {liveSnapshot && (
-                <pre
-                  className="bench-code-box"
-                  style={{ fontSize: 11, padding: '8px 10px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-                >
-                  {`snapshot("${selectedBlock.id}") → ${JSON.stringify(liveSnapshot)}`}
-                </pre>
-              )}
-            </div>
-          )}
+                    Synth Pad (12)
+                  </Button>
 
-          {/* 2. Concentric Tonal Ramp Live Preview */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-              <span style={{ fontWeight: 600 }}>Concentric color-mix Ramp</span>
-              <span style={{ color: 'var(--juice-mute)', fontSize: 11 }}>320px · 20px → 14px → 10px</span>
-            </div>
-            <div className="bench-token-ramp">
-              {[
-                { name: 'w4', bg: 'var(--juice-w4)' },
-                { name: 'w6', bg: 'var(--juice-w6)' },
-                { name: 'w12', bg: 'var(--juice-w12)' },
-                { name: 'w20', bg: 'var(--juice-w20)' },
-                { name: 'faint', bg: 'var(--juice-faint)' },
-                { name: 'mute', bg: 'var(--juice-mute)' },
-              ].map((tok) => (
-                <div
-                  key={tok.name}
-                  className="bench-token-swatch"
-                  style={{ background: tok.bg, color: 'var(--juice-ink)' }}
-                >
-                  {tok.name}
+                  <div style={{ minWidth: 220 }}>
+                    <TextField
+                      aria-label="Filter blocks"
+                      value={searchQuery}
+                      onChange={setSearchQuery}
+                      placeholder={`Filter ${BLOCK_CATALOG.length} blocks…`}
+                      prefix={<Search size={13} />}
+                      clearable
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+
+              <div className="bench-grid">
+                {filteredBlocks.map((block) => {
+                  const isSelected = block.id === selectedBlock.id;
+                  return (
+                    <article
+                      key={block.id}
+                      data-block-cell={block.id}
+                      className="bench-cell"
+                      data-selected={isSelected ? 'true' : undefined}
+                      onClick={() => setAgentTick((t) => t + 1)}
+                    >
+                      <div className="bench-cell-stage">{block.render()}</div>
+
+                      <div className="bench-cell-footer">
+                        <div>
+                          <div className="bench-cell-name">{block.name}</div>
+                          <div className="bench-cell-gesture">{block.gestureLabel}</div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {block.sounds.slice(0, 2).map((snd) => (
+                            <button
+                              key={snd}
+                              type="button"
+                              className="j-chip"
+                              title={`Audition ${snd} sound`}
+                              style={{ height: 24, padding: '0 7px', fontSize: 11 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                playJuiceSound(snd, true);
+                              }}
+                            >
+                              <Volume2 size={11} />
+                              <span>{snd}</span>
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            className="bench-inspect-btn"
+                            data-active={isSelected ? 'true' : undefined}
+                            onClick={() => {
+                              playJuiceSound('tap');
+                              setSelectedId(block.id);
+                              setAgentTick((t) => t + 1);
+                            }}
+                          >
+                            <Sliders size={12} />
+                            <span>Inspect</span>
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </main>
+
+            {/* Non-blocking Contextual Lateral Inspector */}
+            <aside className="bench-inspector" aria-label="Component & Agent Bridge Inspector">
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16, fontWeight: 650, letterSpacing: '-0.02em' }}>
+                      {selectedBlock.name}
+                    </span>
+                    <Badge tone="neutral">{selectedBlock.gestureLabel}</Badge>
+                  </div>
+                  <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--juice-mute)', lineHeight: 1.45 }}>
+                    {selectedBlock.summary}
+                  </p>
+                </div>
+              </div>
+
+              {/* 1. Agent Bridge & Joplo Programmatic Driver */}
+              {selectedBlock.agentActions.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>
+                      Agent &amp; Joplo Step Driver (<Kbd>act()</Kbd>)
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--juice-mute)' }}>Programmatic control</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {selectedBlock.agentActions.map((actItem) => (
+                      <button
+                        key={actItem.label}
+                        type="button"
+                        className="j-chip"
+                        onClick={() => triggerAgentAction(actItem.action, actItem.payload)}
+                      >
+                        <Play size={11} />
+                        <span>{actItem.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {liveSnapshot && (
+                    <pre
+                      className="bench-code-box"
+                      style={{ fontSize: 11, padding: '8px 10px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                    >
+                      {`snapshot("${selectedBlock.id}") → ${JSON.stringify(liveSnapshot)}`}
+                    </pre>
+                  )}
+                </div>
+              )}
+
+              {/* 2. Concentric Tonal Ramp Live Preview */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ fontWeight: 600 }}>Concentric color-mix Ramp</span>
+                  <span style={{ color: 'var(--juice-mute)', fontSize: 11 }}>320px · 20px → 14px → 10px</span>
+                </div>
+                <div className="bench-token-ramp">
+                  {[
+                    { name: 'w4', bg: 'var(--juice-w4)' },
+                    { name: 'w6', bg: 'var(--juice-w6)' },
+                    { name: 'w12', bg: 'var(--juice-w12)' },
+                    { name: 'w20', bg: 'var(--juice-w20)' },
+                    { name: 'faint', bg: 'var(--juice-faint)' },
+                    { name: 'mute', bg: 'var(--juice-mute)' },
+                  ].map((tok) => (
+                    <div
+                      key={tok.name}
+                      className="bench-token-swatch"
+                      style={{ background: tok.bg, color: 'var(--juice-ink)' }}
+                    >
+                      {tok.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Code Snippets: React TSX | Vue 3 | Joplo Flow */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <SegmentedControl
+                    options={[
+                      { value: 'react', label: 'React', icon: <Code2 size={12} /> },
+                      { value: 'vue', label: 'Vue 3', icon: <Layers size={12} /> },
+                      { value: 'joplo', label: 'Joplo', icon: <Terminal size={12} /> },
+                    ]}
+                    value={codeTab}
+                    onChange={setCodeTab}
+                  />
+
+                  <Button
+                    size="xs"
+                    variant="secondary"
+                    leftIcon={copied ? <Check size={12} /> : <Copy size={12} />}
+                    onClick={copySnippet}
+                  >
+                    {copied ? 'Copied' : 'Copy'}
+                  </Button>
+                </div>
+
+                <pre className="bench-code-box" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {activeCodeText}
+                </pre>
+              </div>
+            </aside>
           </div>
+        </>
+      )}
 
-          {/* 3. Code Snippets: React TSX | Vue 3 | Joplo Flow */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <SegmentedControl
-                options={[
-                  { value: 'react', label: 'React', icon: <Code2 size={12} /> },
-                  { value: 'vue', label: 'Vue 3', icon: <Layers size={12} /> },
-                  { value: 'joplo', label: 'Joplo', icon: <Terminal size={12} /> },
-                ]}
-                value={codeTab}
-                onChange={setCodeTab}
-              />
+      {/* Section 2: Get Started & Usage Guide */}
+      {section === 'docs' && <GetStartedView onOpenPlayground={() => setSection('playground')} />}
 
-              <button type="button" className="j-chip" onClick={copySnippet}>
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
+      {/* Section 3: Primitives & Architecture API Reference */}
+      {section === 'api' && <PrimitivesApiView onJumpToBlock={jumpToBlock} />}
 
-            <pre className="bench-code-box" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {activeCodeText}
-            </pre>
+      {/* Section 4: Concentric Tokens & Procedural Sound Lab */}
+      {section === 'tokens' && <TokensSoundLabView />}
+
+      {/* Footer */}
+      <footer className="site-footer">
+        <div className="site-footer-inner">
+          <span>
+            Juice UI · Built with <strong>@tokenroll/juice</strong> · MIT License · TokenRollAI
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <a
+              href="https://github.com/TokenRollAI/juice"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: 'inherit', textDecoration: 'none' }}
+            >
+              github.com/TokenRollAI/juice
+            </a>
+            <span>·</span>
+            <span>Skill: npx skills add TokenRollAI/juice</span>
           </div>
-        </aside>
-      </div>
+        </div>
+      </footer>
+
+      {/* Global Cmd+K Quick Jump Modal */}
+      <QuickJumpModal
+        open={quickJumpOpen}
+        onClose={() => setQuickJumpOpen(false)}
+        blocks={BLOCK_CATALOG}
+        onSelectBlock={jumpToBlock}
+        onSelectSection={setSection}
+      />
     </div>
   );
 }

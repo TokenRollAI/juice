@@ -207,7 +207,7 @@ function MenuPanel({ id, label, entries, anchor, onClose, initialFocus = 'first'
       className="j-menu-list" onKeyDown={onKeyDown}
       style={{
         position: 'fixed', zIndex: 40, inset: 'auto', margin: 0, border: 0, color: 'var(--fill-on)',
-        background: 'var(--fill-slab)', boxShadow: '0 0 0 1px var(--juice-w12), 0 12px 24px #0002',
+        background: 'var(--fill-slab)', boxShadow: '0 0 0 1px var(--juice-edge), 0 14px 36px -8px rgba(0, 0, 0, 0.22)',
         minWidth: 'min(174px, calc(100vw - 16px))', maxWidth: 'calc(100vw - 16px)',
         maxHeight: 'calc(100dvh - 16px)', overflow: 'auto', boxSizing: 'border-box',
       }}>
@@ -690,7 +690,7 @@ export function AlertDialog({ open, defaultOpen = false, onOpenChange, trigger, 
         }} style={{
           background: 'var(--fill-slab)', color: 'var(--fill-on)', border: 0, borderRadius: 20, padding: 16,
           boxSizing: 'border-box', width: 'min(340px, calc(100vw - 24px))',
-          boxShadow: '0 0 0 1px var(--juice-w12), 0 16px 60px #0003',
+          boxShadow: '0 0 0 1px var(--juice-edge), 0 20px 56px -12px rgba(0, 0, 0, 0.28)',
         }}>
         <h2 id={`${id}-title`} style={{ ...row, margin: 0, fontSize: 15 }}>{title}</h2>
         <div id={`${id}-description`} style={{ ...muted, margin: '7px 0 14px', lineHeight: 1.45 }}>{description}</div>

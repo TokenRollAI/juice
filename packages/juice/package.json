@@ -1,12 +1,59 @@
 {
-  "name": "@juice-ui/react",
+  "name": "@tokenroll/juice",
   "version": "0.1.0",
-  "description": "Tactile, behavior-complete React UI components, micro-interactions, concentric color-mix tokens, and procedural Web Audio sounds.",
+  "description": "Tactile, behavior-complete React UI components, Radix & Base UI primitives, AI agent workflows, concentric color-mix tokens, and procedural Web Audio sounds.",
   "license": "MIT",
   "type": "module",
+  "homepage": "https://juice.tokenroll.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TokenRollAI/juice.git",
+    "directory": "packages/juice"
+  },
+  "bugs": {
+    "url": "https://github.com/TokenRollAI/juice/issues"
+  },
+  "keywords": [
+    "react",
+    "ui",
+    "components",
+    "design-system",
+    "radix",
+    "base-ui",
+    "ai-components",
+    "agent-ui",
+    "micro-interactions",
+    "web-audio",
+    "tokenroll"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./styles.css": "./src/styles.css"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "default": "./dist/core.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && node ../../scripts/bundle-css.mjs",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "dependencies": {
     "clsx": "2.1.1",
@@ -14,8 +61,16 @@
     "motion": "14.9.1"
   },
   "peerDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

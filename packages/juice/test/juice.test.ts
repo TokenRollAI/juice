@@ -5,7 +5,7 @@ import {
   setJuiceSoundEnabled,
 } from '../src/sound.ts';
 
-describe('@juice-ui/react procedural sound & catalog', () => {
+describe('@tokenroll/juice procedural sound & catalog', () => {
   it('defines 12 zero-asset procedural sounds with valid frequencies', () => {
     const names = Object.keys(JUICE_SOUND_CATALOG);
     expect(names.length).toBe(12);
