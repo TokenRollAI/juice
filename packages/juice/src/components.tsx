@@ -182,6 +182,50 @@ export function Switch({
   );
 }
 
+export function Checkbox({
+  id,
+  checked: controlledChecked,
+  defaultChecked = false,
+  onChange,
+  'aria-label': ariaLabel,
+}: {
+  id?: string;
+  checked?: boolean;
+  defaultChecked?: boolean;
+  onChange?: (checked: boolean) => void;
+  'aria-label'?: string;
+}) {
+  const { playSound } = useJuice();
+  const [checked, setChecked] = useControllableState({
+    value: controlledChecked,
+    defaultValue: defaultChecked,
+    onChange,
+  });
+
+  const toggle = () => {
+    const next = !checked;
+    playSound(next ? 'latch' : 'tap');
+    setChecked(next);
+  };
+
+  useJuiceAgentNode(id, 'Checkbox', { checked }, { toggle, set: (v: boolean) => setChecked(Boolean(v)) });
+
+  return (
+    <button
+      id={id}
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      data-checked={checked ? 'true' : 'false'}
+      className="j-checkbox"
+      onClick={toggle}
+    >
+      {checked && <Check size={11} strokeWidth={2.75} />}
+    </button>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 1. RollingNumber (NumberFlow-style Odometer with Deterministic Snapshot)
 // ---------------------------------------------------------------------------
@@ -414,10 +458,10 @@ export function StateButton({
 // ---------------------------------------------------------------------------
 
 const ACCENT_SWATCHES = [
-  { id: 'cobalt', color: '#2231dd', label: 'Cobalt' },
-  { id: 'emerald', color: '#15803d', label: 'Emerald' },
-  { id: 'ember', color: '#d94e1f', label: 'Ember' },
-  { id: 'ink', color: '#17181a', label: 'Ink' },
+  { id: 'cobalt', color: '#3b4eff', label: 'Cobalt' },
+  { id: 'emerald', color: '#10b981', label: 'Emerald' },
+  { id: 'ember', color: '#f97316', label: 'Ember' },
+  { id: 'violet', color: '#8b5cf6', label: 'Violet' },
 ] as const;
 
 export function ScrubPanel({
@@ -762,18 +806,18 @@ export function DynamicIsland({
       >
         {mode === 'compact' && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d17a' }} />
-              Agent Idle
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontWeight: 500 }}>
+              <span className="j-status-dot" data-tone="ok" />
+              <span>Agent Ready</span>
             </span>
-            <span style={{ color: '#9a9a9e', fontVariantNumeric: 'tabular-nums' }}>00:42</span>
+            <span style={{ color: 'var(--juice-mute)', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>00:42</span>
           </div>
         )}
 
         {mode === 'active' && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-              <Mic size={14} color="#34d17a" />
+              <Mic size={14} style={{ color: 'var(--juice-ok)' }} />
               <span>Voice Review</span>
             </span>
             <div className="j-wave-bars" aria-hidden="true">
@@ -797,17 +841,17 @@ export function DynamicIsland({
                     width: 32,
                     height: 32,
                     borderRadius: 10,
-                    background: 'rgba(52, 209, 122, 0.16)',
-                    color: '#34d17a',
+                    background: 'color-mix(in srgb, var(--juice-ok) 15%, var(--fill-slab))',
+                    color: 'var(--juice-ok)',
                     display: 'grid',
                     placeItems: 'center',
                   }}
                 >
-                  <Volume2 size={16} />
+                  <Volume2 size={15} />
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>Live Design Walkthrough</div>
-                  <div style={{ fontSize: 11.5, color: '#9a9a9e' }}>Step 3 of 5 · Syncing feedback</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--juice-mute)' }}>Step 3 of 5 · Syncing feedback</div>
                 </div>
               </div>
               <div className="j-wave-bars" aria-hidden="true">
@@ -824,41 +868,29 @@ export function DynamicIsland({
             <div style={{ display: 'flex', gap: 6 }}>
               <button
                 type="button"
+                className="j-chip"
+                style={{ flex: 1, height: 32, justifyContent: 'center' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   cycleMode('compact');
-                }}
-                style={{
-                  flex: 1,
-                  height: 32,
-                  borderRadius: 10,
-                  border: 0,
-                  background: 'rgba(255,255,255,0.1)',
-                  color: '#f4f3f1',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: 'pointer',
                 }}
               >
                 Minimize
               </button>
               <button
                 type="button"
+                className="j-chip"
+                style={{
+                  flex: 1,
+                  height: 32,
+                  justifyContent: 'center',
+                  background: 'var(--fill-on)',
+                  color: 'var(--fill-slab)',
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   playSound('paid');
                   cycleMode('active');
-                }}
-                style={{
-                  flex: 1,
-                  height: 32,
-                  borderRadius: 10,
-                  border: 0,
-                  background: '#34d17a',
-                  color: '#09140d',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
                 }}
               >
                 Approve Step
@@ -1210,7 +1242,7 @@ export function Composer({
       <div className="j-composer-footer">
         <div className="j-composer-chips">
           <button type="button" className="j-chip" onClick={cycleModel}>
-            <Sparkles size={12} />
+            <span className="j-status-dot" data-tone="ok" />
             <span>{model}</span>
           </button>
           <button
@@ -1240,7 +1272,7 @@ export function Composer({
 }
 
 // ---------------------------------------------------------------------------
-// 9. ThinkingMorph (Agent Reasoning -> Tool Call -> Artifact Card)
+// 9. ThinkingMorph (Prompt-Kit Style Reasoning Bar -> Steps -> Artifact)
 // ---------------------------------------------------------------------------
 
 export function ThinkingMorph({
@@ -1277,17 +1309,22 @@ export function ThinkingMorph({
           setExpanded((e) => !e);
         }}
       >
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-          <Sparkles size={14} />
-          <span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <span
+            className="j-status-dot"
+            data-tone={step === 2 ? 'ok' : 'signal'}
+            data-pulse={step < 2 ? 'true' : undefined}
+          />
+          <span className={step < 2 ? 'j-text-shimmer' : undefined}>
             {step === 0 && 'Analyzing layout hierarchy…'}
-            {step === 1 && 'Running patch on ScrubPanel.tsx…'}
-            {step === 2 && 'Thought for 3.2s · 2 tools executed'}
+            {step === 1 && 'Applying concentric 14px row tokens…'}
+            {step === 2 && 'Thought for 3.2s · 2 steps completed'}
           </span>
         </span>
         <ChevronRight
           size={14}
           style={{
+            color: 'var(--juice-mute)',
             transform: expanded ? 'rotate(90deg)' : 'none',
             transition: 'transform 180ms var(--juice-out)',
           }}
@@ -1297,29 +1334,29 @@ export function ThinkingMorph({
       {expanded && (
         <div className="j-thinking-steps">
           <div className="j-thinking-step" data-status={step === 0 ? 'running' : 'done'}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Check size={13} />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <Check size={12} style={{ color: 'var(--juice-mute)' }} />
               <span>Inspect token contrast ramp</span>
             </span>
             <Kbd>12ms</Kbd>
           </div>
           <div className="j-thinking-step" data-status={step === 1 ? 'running' : 'done'}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Terminal size={13} />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <Terminal size={12} style={{ color: 'var(--juice-mute)' }} />
               <span>Write concentric 14px row styles</span>
             </span>
-            <Kbd>{step >= 1 ? 'Done' : 'Wait'}</Kbd>
+            <Kbd>{step >= 1 ? '28ms' : 'Wait'}</Kbd>
           </div>
         </div>
       )}
 
       {step === 2 && (
         <div className="j-artifact-pill">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileCode2 size={16} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <FileCode2 size={15} style={{ color: 'var(--juice-soft)' }} />
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>juice-tokens.css</div>
-              <div style={{ fontSize: 11.5, color: 'var(--juice-mute)' }}>Artifact v2 · Ready for Joplo stage</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--juice-font-mono)' }}>juice-tokens.css</div>
+              <div style={{ fontSize: 11.5, color: 'var(--juice-mute)' }}>v2 · Ready for stage</div>
             </div>
           </div>
           <button type="button" className="j-chip" onClick={nextStep}>

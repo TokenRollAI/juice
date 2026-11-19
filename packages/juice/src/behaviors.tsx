@@ -402,6 +402,17 @@ if (typeof window !== 'undefined') {
   (window as unknown as { __juiceAgent?: JuiceAgentBridge }).__juiceAgent = bridge;
 }
 
+export function registerJuiceAgentNode(entry: JuiceAgentNodeEntry): () => void {
+  agentRegistry.set(entry.id, entry);
+  return () => {
+    agentRegistry.delete(entry.id);
+  };
+}
+
+export function unregisterJuiceAgentNode(id: string): void {
+  agentRegistry.delete(id);
+}
+
 export function useJuiceAgentNode(
   id: string | undefined,
   type: string,
@@ -415,7 +426,7 @@ export function useJuiceAgentNode(
 
   useEffect(() => {
     if (!id) return;
-    agentRegistry.set(id, {
+    return registerJuiceAgentNode({
       id,
       type,
       getState: () => stateRef.current,
@@ -426,8 +437,5 @@ export function useJuiceAgentNode(
         return true;
       },
     });
-    return () => {
-      agentRegistry.delete(id);
-    };
   }, [id, type]);
 }

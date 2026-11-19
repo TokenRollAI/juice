@@ -1,0 +1,411 @@
+/**
+ * Juice Everyday Foundation UI Styles
+ * Covers Buttons, Inputs, Selects, Radios, Checkboxes, Sliders, Tags, Calendar,
+ * Dialogs, Dropdowns, Popovers, Tooltips, Accordions, Breadcrumbs, Pagination,
+ * Alerts, Progress/Meters, Avatars, and Empty States.
+ * Strictly adheres to the 320px Bench rhythm and concentric 20px -> 14px -> 10px geometry.
+ */
+
+.j-fnd-card {
+  width: 320px !important;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Standard Button Primitive (.j-btn) ──────────────────────────── */
+
+.j-btn {
+  position: relative;
+  border: 0;
+  border-radius: var(--juice-r-control);
+  font: inherit;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    transform 130ms var(--juice-out),
+    opacity 140ms ease;
+}
+.j-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.j-btn:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+.j-btn:focus-visible {
+  outline: 2px solid var(--juice-signal);
+  outline-offset: 2px;
+}
+
+/* Sizes */
+.j-btn[data-size="xs"] {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  border-radius: 7px;
+}
+.j-btn[data-size="sm"] {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  border-radius: 9px;
+}
+.j-btn[data-size="md"],
+.j-btn:not([data-size]) {
+  height: 36px;
+  padding: 0 13px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+.j-btn[data-size="lg"] {
+  height: 42px;
+  padding: 0 16px;
+  font-size: 14px;
+  border-radius: 12px;
+}
+
+/* Variants */
+.j-btn[data-variant="primary"],
+.j-btn:not([data-variant]) {
+  background: var(--fill-on);
+  color: var(--fill-slab);
+}
+.j-btn[data-variant="secondary"] {
+  background: var(--juice-w12);
+  color: var(--fill-on);
+}
+.j-btn[data-variant="secondary"]:hover:not(:disabled) {
+  background: var(--juice-w20);
+}
+.j-btn[data-variant="ghost"] {
+  background: transparent;
+  color: var(--juice-soft);
+}
+.j-btn[data-variant="ghost"]:hover:not(:disabled) {
+  background: var(--juice-w6);
+  color: var(--fill-on);
+}
+.j-btn[data-variant="outline"] {
+  background: transparent;
+  color: var(--fill-on);
+  box-shadow: inset 0 0 0 1px var(--juice-w20);
+}
+.j-btn[data-variant="outline"]:hover:not(:disabled) {
+  background: var(--juice-w6);
+}
+.j-btn[data-variant="danger"] {
+  background: color-mix(in srgb, var(--juice-danger) 16%, var(--fill-slab));
+  color: var(--juice-danger);
+}
+.j-btn[data-variant="danger"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--juice-danger) 24%, var(--fill-slab));
+}
+
+.j-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 9px;
+}
+
+/* ── Standard Form Fields (.j-field, .j-input-box) ───────────────── */
+
+.j-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.j-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--juice-soft);
+  padding: 0 2px;
+}
+.j-field-hint {
+  font-size: 11px;
+  color: var(--juice-mute);
+}
+.j-field-error {
+  font-size: 11px;
+  color: var(--juice-danger);
+  font-weight: 500;
+}
+
+.j-input-box {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 11px;
+  background: var(--juice-w6);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+.j-input-box:focus-within {
+  background: var(--juice-w12);
+  box-shadow: inset 0 0 0 1.5px var(--fill-on);
+}
+.j-input-box[data-invalid="true"] {
+  background: color-mix(in srgb, var(--juice-danger) 8%, var(--fill-slab));
+  box-shadow: inset 0 0 0 1.5px var(--juice-danger);
+}
+.j-input-el {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fill-on);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.j-input-el::placeholder {
+  color: var(--juice-faint);
+}
+
+/* ── Radio & Choice Cards (.j-radio-card, .j-radio-dot) ──────────── */
+
+.j-radio-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--juice-w6);
+  color: var(--fill-on);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 130ms var(--juice-out);
+}
+.j-radio-card:hover {
+  background: var(--juice-w12);
+}
+.j-radio-card[data-checked="true"] {
+  background: var(--juice-w12);
+  box-shadow: inset 0 0 0 1.5px var(--fill-on);
+}
+.j-radio-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--juice-w12);
+  box-shadow: inset 0 0 0 1.5px var(--juice-faint);
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.j-radio-card[data-checked="true"] .j-radio-dot,
+.j-radio-dot[data-checked="true"] {
+  background: var(--fill-on);
+  box-shadow: none;
+}
+.j-radio-dot-inner {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fill-slab);
+}
+
+/* ── Number Steppers & Sliders (.j-num-stepper, .j-range-track) ──── */
+
+.j-num-stepper {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--juice-w6);
+  padding: 2px;
+  gap: 2px;
+}
+.j-num-btn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fill-on);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background-color 120ms ease;
+}
+.j-num-btn:hover {
+  background: var(--juice-w12);
+}
+.j-num-val {
+  min-width: 48px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.j-slider-track {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+.j-slider-rail {
+  width: 100%;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--juice-w12);
+  position: relative;
+  overflow: hidden;
+}
+.j-slider-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--fill-on);
+  border-radius: 99px;
+}
+.j-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--fill-slab);
+  box-shadow: 0 0 0 2px var(--fill-on), 0 2px 5px rgba(0, 0, 0, 0.18);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ── Menu, Select, Accordion, Breadcrumbs, Pagination ────────────── */
+
+.j-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 13px;
+  background: var(--juice-w6);
+}
+.j-menu-item {
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--juice-soft);
+  font: inherit;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 110ms ease, color 110ms ease;
+}
+.j-menu-item:hover,
+.j-menu-item[data-highlighted="true"] {
+  background: var(--juice-w12);
+  color: var(--fill-on);
+}
+.j-menu-item[data-tone="danger"] {
+  color: var(--juice-danger);
+}
+.j-menu-item[data-tone="danger"]:hover {
+  background: color-mix(in srgb, var(--juice-danger) 14%, var(--fill-slab));
+}
+
+.j-acc-item {
+  border-radius: 12px;
+  background: var(--juice-w6);
+  overflow: hidden;
+}
+.j-acc-trigger {
+  width: 100%;
+  height: 36px;
+  padding: 0 11px;
+  border: 0;
+  background: transparent;
+  color: var(--fill-on);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.j-acc-body {
+  padding: 0 11px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--juice-mute);
+}
+
+/* ── Alert, Progress, Avatar & Empty State ───────────────────────── */
+
+.j-alert {
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--juice-w6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.j-alert[data-tone="ok"] {
+  background: color-mix(in srgb, var(--juice-ok) 13%, var(--fill-slab));
+  color: var(--juice-ok);
+}
+.j-alert[data-tone="warn"] {
+  background: color-mix(in srgb, var(--juice-warn) 13%, var(--fill-slab));
+  color: var(--juice-warn);
+}
+.j-alert[data-tone="danger"] {
+  background: color-mix(in srgb, var(--juice-danger) 13%, var(--fill-slab));
+  color: var(--juice-danger);
+}
+
+.j-avatar-group {
+  display: inline-flex;
+  align-items: center;
+}
+.j-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--juice-w12);
+  color: var(--fill-on);
+  box-shadow: 0 0 0 2px var(--fill-slab);
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-grid;
+  place-items: center;
+  position: relative;
+  margin-left: -6px;
+}
+.j-avatar:first-child {
+  margin-left: 0;
+}

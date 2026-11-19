@@ -1,40 +1,72 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
+  AccordionKit,
+  AgentMemoryStore,
+  AgentPlanChecklist,
+  AlertProgress,
+  ArtifactCanvas,
   AudioWaveTrim,
+  AvatarProfile,
   Badge,
+  ButtonKit,
+  ChoiceCards,
   CodeDiffReveal,
   CommandPalette,
   Composer,
+  ContextBudgetMeter,
   DataGrid,
+  DialogModal,
   DrawerSheet,
+  DropdownMenuKit,
   DynamicIsland,
+  EmptyStateCard,
+  FileDropzone,
   FilterBar,
+  GroundedAnswer,
+  InputFields,
   JUICE_SOUND_CATALOG,
   JuiceProvider,
   Kbd,
+  McpServerRoster,
+  MessageBranchThread,
   MetricRibbon,
+  ModelArenaCompare,
+  ModelEffortPicker,
   MorphCard,
+  NavPagination,
   OtpField,
   PassStrength,
   playJuiceSound,
+  PopoverTooltipKit,
   RadialDial,
+  RangeNumberKit,
+  RateLimitBanner,
   ResizableSplit,
   RollingNumber,
   ScrubPanel,
   SegmentedControl,
+  SelectCombobox,
   SelectionToolbar,
+  SettingsRows,
   SkeletonMorph,
+  SlashMentionComposer,
   SlideConfirm,
   SplitCompare,
   StateButton,
+  SubagentSwarmBoard,
   SwipeCard,
   TabsMorph,
+  TagCalendarKit,
+  TerminalStreamCard,
   ThinkingMorph,
   TimeSlotPicker,
   ToastStack,
+  ToolApprovalGate,
   TransferList,
   TreeExplorer,
   useJuice,
+  VisionRegionAsk,
+  VoiceOrbSession,
   type JuiceAgentBridge,
   type JuiceSoundName,
 } from '@juice-ui/react';
@@ -42,17 +74,18 @@ import {
   Check,
   Code2,
   Copy,
+  Layers,
   Moon,
   Play,
   Search,
   Sliders,
-  Sparkles,
   Sun,
+  Terminal,
   Volume2,
   VolumeX,
 } from 'lucide-react';
 
-type GestureCategory = 'all' | 'press' | 'drag' | 'hover' | 'type' | 'workspace' | 'ai';
+type GestureCategory = 'all' | 'foundation' | 'ai' | 'press' | 'drag' | 'hover' | 'workspace';
 
 type BlockSpec = {
   id: string;
@@ -63,12 +96,561 @@ type BlockSpec = {
   sounds: JuiceSoundName[];
   agentActions: Array<{ label: string; action: string; payload?: unknown }>;
   reactCode: string;
+  vueCode?: string;
   joploCode: string;
   render: () => ReactNode;
 };
 
+function deriveVueSnippet(block: BlockSpec): string {
+  if (block.vueCode) return block.vueCode;
+  const tagMap: Record<string, string> = {
+    StateButton: 'JStateButton',
+    ScrubPanel: 'JScrubPanel',
+    SlideConfirm: 'JSlideConfirm',
+    DynamicIsland: 'JDynamicIsland',
+    MorphCard: 'JMorphCard',
+    ToastStack: 'JToastStack',
+    Composer: 'JComposer',
+    ThinkingMorph: 'JThinkingMorph',
+    ToolApprovalGate: 'JToolApprovalGate',
+    GroundedAnswer: 'JGroundedAnswer',
+    ContextBudgetMeter: 'JContextBudgetMeter',
+    SubagentSwarmBoard: 'JSubagentSwarmBoard',
+    RollingNumber: 'JRollingNumber',
+  };
+  let sfc = block.reactCode;
+  for (const [reactTag, vueTag] of Object.entries(tagMap)) {
+    sfc = sfc.replace(new RegExp(`<${reactTag}\\b`, 'g'), `<${vueTag}`);
+  }
+  // Convert JSX prop={val} to Vue :prop="val"
+  sfc = sfc.replace(/(\w+)=\{([^}]+)\}/g, ':$1="$2"');
+  return `<script setup lang="ts">\nimport { JProvider } from '@juice-ui/vue';\nimport '@juice-ui/vue/styles.css';\n</script>\n\n<template>\n  <JProvider>\n    ${sfc.split('\n').join('\n    ')}\n  </JProvider>\n</template>`;
+}
+
 const BLOCK_CATALOG: BlockSpec[] = [
-  // ── 1-12: Core Micro-Interaction & AI Blocks ──────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // I. Everyday Foundation UI Components (16 Complete Families)
+  // ═══════════════════════════════════════════════════════════════════════
+  {
+    id: 'button-kit',
+    name: 'ButtonKit',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Buttons & Variants',
+    summary: '5 concentric button variants (primary, secondary, outline, ghost, danger), 3 sizes, and live loading state.',
+    sounds: ['tap'],
+    agentActions: [
+      { label: 'Variant: Primary', action: 'setVariant', payload: 'primary' },
+      { label: 'Variant: Danger', action: 'setVariant', payload: 'danger' },
+      { label: 'Toggle Loading', action: 'toggleLoading' },
+      { label: 'Trigger Press', action: 'triggerPress' },
+    ],
+    reactCode: `<Button variant="primary" size="md" loading={false}>\n  Deploy Production\n</Button>`,
+    joploCode: `flow('Click primary deploy button', { start: '/deploy' })\n  .click('button-kit', 'Trigger deploy action')`,
+    render: () => <ButtonKit id="button-kit" />,
+  },
+  {
+    id: 'input-fields',
+    name: 'InputFields',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Text & Secret Inputs',
+    summary: 'Standard TextField with live slug validation error state, password field, clear button, and Kbd shortcut.',
+    sounds: ['tap'],
+    agentActions: [
+      { label: 'Trigger Validation Error', action: 'triggerError' },
+      { label: 'Reset Valid Slug', action: 'resetValid' },
+      { label: 'Set Slug "juice-ui"', action: 'setSlug', payload: 'juice-ui' },
+    ],
+    reactCode: `<TextField\n  label="Project Slug"\n  value={slug}\n  onChange={setSlug}\n  error={error}\n/>`,
+    joploCode: `flow('Validate project slug input', { start: '/settings' })\n  .type('input-fields', 'invalid slug')`,
+    render: () => <InputFields id="input-fields" />,
+  },
+  {
+    id: 'select-combobox',
+    name: 'SelectCombobox',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Searchable Select',
+    summary: 'Searchable region combobox with keyboard ↑/↓ roving focus, instant filter, and active check indicator.',
+    sounds: ['tap', 'tick'],
+    agentActions: [
+      { label: 'Filter "Tokyo"', action: 'filterQuery', payload: 'Tokyo' },
+      { label: 'Select Frankfurt', action: 'selectRegion', payload: 'eu-central-1' },
+      { label: 'Select Virginia', action: 'selectRegion', payload: 'us-east-1' },
+    ],
+    reactCode: `<Select\n  label="Deployment Region"\n  options={regions}\n  value={region}\n  onChange={setRegion}\n/>`,
+    joploCode: `flow('Select deployment region', { start: '/new' })\n  .select('select-combobox', 'eu-central-1 · Frankfurt')`,
+    render: () => <SelectCombobox id="select-combobox" />,
+  },
+  {
+    id: 'choice-cards',
+    name: 'ChoiceCards',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Radio & Checkbox Group',
+    summary: 'Concentric selectable RadioCards paired with a custom Checkbox group and Select-All parent toggle.',
+    sounds: ['latch', 'tap'],
+    agentActions: [
+      { label: 'Plan: Pro ($20)', action: 'selectPlan', payload: 'pro' },
+      { label: 'Plan: Enterprise', action: 'selectPlan', payload: 'enterprise' },
+      { label: 'Toggle Edge Cache', action: 'toggleAddon', payload: 'edge-cache' },
+      { label: 'Toggle DDoS Shield', action: 'toggleAddon', payload: 'ddos-shield' },
+    ],
+    reactCode: `<RadioCard\n  name="plan"\n  checked={plan === 'pro'}\n  label="Pro · $20"\n  onChange={() => setPlan('pro')}\n/>`,
+    joploCode: `flow('Select Pro plan and add-ons', { start: '/billing' })\n  .click('choice-cards', 'Choose Pro plan and Edge Cache')`,
+    render: () => <ChoiceCards id="choice-cards" />,
+  },
+  {
+    id: 'range-number-kit',
+    name: 'RangeNumberKit',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Stepper & Slider',
+    summary: 'Tabular NumberField with -/+ steppers paired with a continuous pointer/keyboard scrubbable Slider.',
+    sounds: ['tap'],
+    agentActions: [
+      { label: 'Instances → 16', action: 'setInstances', payload: 16 },
+      { label: 'Memory → 4096 MB', action: 'setMemory', payload: 4096 },
+      { label: 'Memory → 1024 MB', action: 'setMemory', payload: 1024 },
+    ],
+    reactCode: `<NumberField label="Max Instances" min={1} max={32} value={8} />\n<Slider label="Memory Allocation" min={512} max={8192} value={2048} unit="MB" />`,
+    joploCode: `flow('Scale instance count and memory', { start: '/scale' })\n  .drag('range-number-kit', 'Increase memory to 4096 MB')`,
+    render: () => <RangeNumberKit id="range-number-kit" />,
+  },
+  {
+    id: 'tag-calendar-kit',
+    name: 'TagCalendarKit',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Tags & Date Range',
+    summary: 'Removable tag chips with inline add input paired with a 7-day range selection calendar strip.',
+    sounds: ['latch', 'tap'],
+    agentActions: [
+      { label: '+ Add Tag "cloudflare"', action: 'addTag', payload: 'cloudflare' },
+      { label: 'Remove "vue"', action: 'removeTag', payload: 'vue' },
+      { label: 'Pick Nov 20', action: 'selectDate', payload: 20 },
+    ],
+    reactCode: `<TagCalendarKit id="tag-calendar-kit" />`,
+    joploCode: `flow('Add framework tag and date window', { start: '/filter' })\n  .click('tag-calendar-kit', 'Add cloudflare tag')`,
+    render: () => <TagCalendarKit id="tag-calendar-kit" />,
+  },
+  {
+    id: 'settings-rows',
+    name: 'SettingsRows',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Switch Field List',
+    summary: 'High-density settings switch rows with live active counter and mechanical latch audio feedback.',
+    sounds: ['latch', 'tap'],
+    agentActions: [
+      { label: 'Toggle Preview Comments', action: 'toggleSetting', payload: 'preview-comments' },
+      { label: 'Enable All Settings', action: 'enableAll' },
+    ],
+    reactCode: `<SettingsRows id="settings-rows" />`,
+    joploCode: `flow('Enable all deployment safeguards', { start: '/settings' })\n  .toggle('settings-rows', true)`,
+    render: () => <SettingsRows id="settings-rows" />,
+  },
+  {
+    id: 'file-dropzone',
+    name: 'FileDropzone',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Upload & Progress',
+    summary: 'Drag-and-drop file uploader with simulated upload progress bar, file size badges, and item removal.',
+    sounds: ['tap'],
+    agentActions: [
+      { label: 'Simulate Upload', action: 'simulateUpload' },
+      { label: 'Clear Files', action: 'clearFiles' },
+    ],
+    reactCode: `<FileDropzone id="file-dropzone" />`,
+    joploCode: `flow('Upload schema and token assets', { start: '/import' })\n  .click('file-dropzone', 'Upload project assets')`,
+    render: () => <FileDropzone id="file-dropzone" />,
+  },
+  {
+    id: 'dialog-modal',
+    name: 'DialogModal',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Inline Dialog Card',
+    summary: 'Stage-contained confirmation dialog with Escape dismissal, focus recovery, and post-confirm reopen.',
+    sounds: ['paid', 'tap'],
+    agentActions: [
+      { label: 'Confirm Archive', action: 'confirmArchive' },
+      { label: 'Close Dialog', action: 'closeDialog' },
+      { label: 'Reopen Dialog', action: 'openDialog' },
+    ],
+    reactCode: `<DialogModal id="dialog-modal" />`,
+    joploCode: `flow('Confirm project archival', { start: '/settings' })\n  .click('dialog-modal', 'Confirm archive')`,
+    render: () => <DialogModal id="dialog-modal" />,
+  },
+  {
+    id: 'dropdown-menu',
+    name: 'DropdownMenuKit',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Roving Menu & Kbd',
+    summary: 'Keyboard-navigable dropdown menu with checkable items, right-aligned Kbd shortcuts, and danger row.',
+    sounds: ['tap', 'tick'],
+    agentActions: [
+      { label: 'Toggle Grid Guides', action: 'toggleGuides' },
+      { label: 'Run Duplicate (⌘D)', action: 'selectItem', payload: 'duplicate' },
+      { label: 'Run Delete (⌫)', action: 'selectItem', payload: 'delete' },
+    ],
+    reactCode: `<DropdownMenuKit id="dropdown-menu" />`,
+    joploCode: `flow('Trigger duplicate from context menu', { start: '/canvas' })\n  .click('dropdown-menu', 'Duplicate block')`,
+    render: () => <DropdownMenuKit id="dropdown-menu" />,
+  },
+  {
+    id: 'popover-tooltip',
+    name: 'PopoverTooltipKit',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Popover & Tooltip',
+    summary: 'Non-blocking quick-share popover (public link switch, role selector, copy URL) paired with a Kbd tooltip.',
+    sounds: ['latch', 'tap', 'pop'],
+    agentActions: [
+      { label: 'Toggle Public Link', action: 'togglePublic' },
+      { label: 'Role: Editor', action: 'setRole', payload: 'Editor' },
+      { label: 'Copy Share URL', action: 'copyLink' },
+    ],
+    reactCode: `<PopoverTooltipKit id="popover-tooltip" />`,
+    joploCode: `flow('Enable public share link', { start: '/share' })\n  .click('popover-tooltip', 'Toggle public access and copy link')`,
+    render: () => <PopoverTooltipKit id="popover-tooltip" />,
+  },
+  {
+    id: 'accordion-kit',
+    name: 'AccordionKit',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Disclosure Accordion',
+    summary: '3-item concentric disclosure accordion with smooth chevron rotation and Expand/Collapse All toggle.',
+    sounds: ['tap'],
+    agentActions: [
+      { label: 'Open Procedural Audio', action: 'openItem', payload: 'audio' },
+      { label: 'Open Agent Bridge', action: 'openItem', payload: 'bridge' },
+      { label: 'Toggle All Items', action: 'toggleAll' },
+    ],
+    reactCode: `<AccordionKit id="accordion-kit" />`,
+    joploCode: `flow('Inspect architecture sections', { start: '/docs' })\n  .click('accordion-kit', 'Expand Agent Bridge section')`,
+    render: () => <AccordionKit id="accordion-kit" />,
+  },
+  {
+    id: 'nav-pagination',
+    name: 'NavPagination',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Breadcrumbs & Pager',
+    summary: 'Clickable path breadcrumbs paired with a 5-page pagination bar and RollingNumber item range readout.',
+    sounds: ['tap', 'tick'],
+    agentActions: [
+      { label: 'Next Page →', action: 'nextPage' },
+      { label: '← Prev Page', action: 'prevPage' },
+      { label: 'Jump to Page 4', action: 'setPage', payload: 4 },
+    ],
+    reactCode: `<Breadcrumbs segments={['Workspace', 'Packages', '@juice-ui']} current="react" />\n<Pagination page={1} pageCount={5} onChange={setPage} />`,
+    joploCode: `flow('Page through package directory', { start: '/packages' })\n  .click('nav-pagination', 'Advance to page 2')`,
+    render: () => <NavPagination id="nav-pagination" />,
+  },
+  {
+    id: 'alert-progress',
+    name: 'AlertProgress',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Quota Meter & Alert',
+    summary: 'Multi-segment storage meter that dynamically shifts the inline Alert callout from OK to Warning/Danger.',
+    sounds: ['tap', 'paid'],
+    agentActions: [
+      { label: 'Normal Quota (66%)', action: 'setUsage', payload: 66 },
+      { label: 'Warning Quota (84%)', action: 'setUsage', payload: 84 },
+      { label: 'Critical Quota (95%)', action: 'setUsage', payload: 95 },
+    ],
+    reactCode: `<AlertProgress id="alert-progress" />`,
+    joploCode: `flow('Trigger high storage alert', { start: '/usage' })\n  .system('Storage crosses 80% threshold', set($.data.usage, 84))`,
+    render: () => <AlertProgress id="alert-progress" />,
+  },
+  {
+    id: 'avatar-profile',
+    name: 'AvatarProfile',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Avatar Stack & Card',
+    summary: 'Overlapping AvatarGroup stack with interactive member selection, status indicator, and reviewer assignment.',
+    sounds: ['tap', 'latch'],
+    agentActions: [
+      { label: 'Select RF (Rauno)', action: 'selectMember', payload: 'RF' },
+      { label: 'Select EK (Emil)', action: 'selectMember', payload: 'EK' },
+      { label: 'Toggle Reviewer', action: 'toggleReviewer' },
+    ],
+    reactCode: `<AvatarProfile id="avatar-profile" />`,
+    joploCode: `flow('Assign Rauno as design reviewer', { start: '/team' })\n  .click('avatar-profile', 'Select RF and assign reviewer')`,
+    render: () => <AvatarProfile id="avatar-profile" />,
+  },
+  {
+    id: 'empty-state',
+    name: 'EmptyStateCard',
+    gesture: 'foundation',
+    gestureLabel: 'Foundation · Zero-Slop Empty State',
+    summary: 'Minimalist empty state that transitions into a populated live webhook row with one-click reset.',
+    sounds: ['paid', 'tap'],
+    agentActions: [
+      { label: '+ Populate Webhook', action: 'populate' },
+      { label: 'Reset to Empty', action: 'resetEmpty' },
+    ],
+    reactCode: `<EmptyStateCard id="empty-state" />`,
+    joploCode: `flow('Create first project webhook from empty state', { start: '/webhooks' })\n  .click('empty-state', 'Create webhook endpoint')`,
+    render: () => <EmptyStateCard id="empty-state" />,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // II. Deep AI Chat, Grounding, Multimodal & Agentic Workflow Suite (16 New)
+  // ═══════════════════════════════════════════════════════════════════════
+  {
+    id: 'slash-mention-composer',
+    name: 'SlashMentionComposer',
+    gesture: 'ai',
+    gestureLabel: 'AI Chat · /Skills & @Mentions',
+    summary: 'Prompt composer with interactive /skill commands (/architect, /review), @file context pills, and attachment tray.',
+    sounds: ['tap', 'pop'],
+    agentActions: [
+      { label: 'Skill: /architect', action: 'selectSkill', payload: '/architect' },
+      { label: 'Skill: /review', action: 'selectSkill', payload: '/review' },
+      { label: 'Toggle @styles.css', action: 'toggleMention', payload: 'styles.css' },
+      { label: 'Dispatch Prompt', action: 'submit' },
+    ],
+    reactCode: `<SlashMentionComposer id="slash-mention-composer" />`,
+    joploCode: `flow('Invoke /architect skill with @styles.css', { start: '/chat' })\n  .click('slash-mention-composer', 'Select /architect and send')`,
+    render: () => <SlashMentionComposer id="slash-mention-composer" />,
+  },
+  {
+    id: 'model-effort-picker',
+    name: 'ModelEffortPicker',
+    gesture: 'ai',
+    gestureLabel: 'AI Chat · Model & Thinking Effort',
+    summary: 'Switch model families (Claude 4.6 Opus, Gemini 4 Carbon, GPT-6.2 Sol) and calibrate reasoning effort (Low → Max).',
+    sounds: ['tap', 'tick'],
+    agentActions: [
+      { label: 'Model: Gemini 4 Carbon', action: 'setModel', payload: 'Gemini 4 Carbon' },
+      { label: 'Model: GPT-6.2 Sol', action: 'setModel', payload: 'GPT-6.2 Sol' },
+      { label: 'Effort: High', action: 'setEffort', payload: 'high' },
+      { label: 'Effort: Max', action: 'setEffort', payload: 'max' },
+    ],
+    reactCode: `<ModelEffortPicker\n  id="model-effort-picker"\n  defaultModel="Claude 4.6 Opus"\n  defaultEffort="high"\n/>`,
+    joploCode: `flow('Switch to Gemini 4 Carbon at Max effort', { start: '/chat' })\n  .select('model-effort-picker', 'max')`,
+    render: () => <ModelEffortPicker id="model-effort-picker" />,
+  },
+  {
+    id: 'context-budget-meter',
+    name: 'ContextBudgetMeter',
+    gesture: 'ai',
+    gestureLabel: 'AI Chat · Context Compaction',
+    summary: '4-segment token budget visualizer (System, Files, Chat, Reserve) with one-click /compact compression (94k → 42k).',
+    sounds: ['paid', 'tap'],
+    agentActions: [
+      { label: 'Run /compact (94k → 42k)', action: 'compact' },
+      { label: 'Restore Full Context', action: 'restore' },
+    ],
+    reactCode: `<ContextBudgetMeter id="context-budget-meter" />`,
+    joploCode: `flow('Compact conversation context window', { start: '/session' })\n  .click('context-budget-meter', 'Compact 94k tokens to 42k')`,
+    render: () => <ContextBudgetMeter id="context-budget-meter" />,
+  },
+  {
+    id: 'grounded-answer',
+    name: 'GroundedAnswer',
+    gesture: 'ai',
+    gestureLabel: 'AI Answers · Inline Citations [1..3]',
+    summary: 'Grounded AI response with interactive [1][2][3] citation pills that morph open verified source snippets.',
+    sounds: ['tick'],
+    agentActions: [
+      { label: 'Cite [1] bencho.dev', action: 'selectCitation', payload: 1 },
+      { label: 'Cite [2] ui-sdk.dev', action: 'selectCitation', payload: 2 },
+      { label: 'Cite [3] aisdkagents.com', action: 'selectCitation', payload: 3 },
+    ],
+    reactCode: `<GroundedAnswer id="grounded-answer" defaultCitation={1} />`,
+    joploCode: `flow('Inspect grounded citation source', { start: '/answer' })\n  .click('grounded-answer', 'Verify citation [2] from ui-sdk.dev')`,
+    render: () => <GroundedAnswer id="grounded-answer" />,
+  },
+  {
+    id: 'message-branch-thread',
+    name: 'MessageBranchThread',
+    gesture: 'ai',
+    gestureLabel: 'AI Answers · Branches & Resume',
+    summary: 'Assistant reply with version history pager (1/3 .. 3/3) and Interrupted Stream recovery banner.',
+    sounds: ['tap', 'paid'],
+    agentActions: [
+      { label: 'Branch 1/3', action: 'setBranch', payload: 1 },
+      { label: 'Branch 2/3', action: 'setBranch', payload: 2 },
+      { label: 'Simulate Interrupt', action: 'interruptStream' },
+      { label: 'Continue Stream', action: 'continueStream' },
+    ],
+    reactCode: `<MessageBranchThread id="message-branch-thread" />`,
+    joploCode: `flow('Resume interrupted stream and browse branches', { start: '/thread' })\n  .click('message-branch-thread', 'Continue generating response')`,
+    render: () => <MessageBranchThread id="message-branch-thread" />,
+  },
+  {
+    id: 'model-arena-compare',
+    name: 'ModelArenaCompare',
+    gesture: 'ai',
+    gestureLabel: 'AI Answers · Side-by-Side Eval',
+    summary: 'Dual-column model arena comparing latency, tok/s throughput, and output quality with one-click winner vote.',
+    sounds: ['paid', 'tap'],
+    agentActions: [
+      { label: 'Vote Model A (Claude)', action: 'pickWinner', payload: 'A' },
+      { label: 'Vote Model B (Sol)', action: 'pickWinner', payload: 'B' },
+      { label: 'Reset Vote', action: 'pickWinner', payload: null },
+    ],
+    reactCode: `<ModelArenaCompare id="model-arena-compare" />`,
+    joploCode: `flow('Evaluate side-by-side model outputs', { start: '/arena' })\n  .click('model-arena-compare', 'Vote Model A as winner')`,
+    render: () => <ModelArenaCompare id="model-arena-compare" />,
+  },
+  {
+    id: 'vision-region-ask',
+    name: 'VisionRegionAsk',
+    gesture: 'ai',
+    gestureLabel: 'AI Vision · Point-and-Ask Boxes',
+    summary: 'Interactive visual inspection canvas with bounding boxes (Header, CTA, Contrast Warn) and localized Auto-Fix.',
+    sounds: ['pop', 'paid'],
+    agentActions: [
+      { label: 'Inspect Contrast Box', action: 'selectRegion', payload: 'contrast' },
+      { label: 'Inspect CTA Box', action: 'selectRegion', payload: 'cta' },
+      { label: 'Auto-Fix Region', action: 'fixRegion' },
+    ],
+    reactCode: `<VisionRegionAsk id="vision-region-ask" />`,
+    joploCode: `flow('Select low-contrast region and apply vision fix', { start: '/vision' })\n  .click('vision-region-ask', 'Fix contrast region')`,
+    render: () => <VisionRegionAsk id="vision-region-ask" />,
+  },
+  {
+    id: 'voice-orb-session',
+    name: 'VoiceOrbSession',
+    gesture: 'ai',
+    gestureLabel: 'AI Voice · Live Waveform & Transcript',
+    summary: 'Real-time voice session card with 12 static-safe equalizer bars, state switcher, and live dialogue transcript.',
+    sounds: ['tap', 'pop'],
+    agentActions: [
+      { label: 'State: Listening', action: 'setVoiceState', payload: 'listening' },
+      { label: 'State: Thinking', action: 'setVoiceState', payload: 'thinking' },
+      { label: 'State: Speaking', action: 'setVoiceState', payload: 'speaking' },
+      { label: 'Toggle Mute', action: 'toggleMute' },
+    ],
+    reactCode: `<VoiceOrbSession id="voice-orb-session" />`,
+    joploCode: `flow('Transition voice agent from listening to speaking', { start: '/voice' })\n  .click('voice-orb-session', 'Switch to speaking state')`,
+    render: () => <VoiceOrbSession id="voice-orb-session" />,
+  },
+  {
+    id: 'tool-approval-gate',
+    name: 'ToolApprovalGate',
+    gesture: 'ai',
+    gestureLabel: 'AI Agents · HITL Safety Gate',
+    summary: 'Human-in-the-loop approval gate for destructive SQL/shell tool calls with Dry-Run toggle, Approve, and Deny.',
+    sounds: ['paid', 'deny', 'tap'],
+    agentActions: [
+      { label: 'Approve Migration', action: 'approve' },
+      { label: 'Deny Tool Call', action: 'deny' },
+      { label: 'Reset Gate', action: 'reset' },
+    ],
+    reactCode: `<ToolApprovalGate\n  id="tool-approval-gate"\n  tool="db.migrate"\n  command="ALTER TABLE users DROP COLUMN legacy_token;"\n/>`,
+    joploCode: `flow('Review and approve database migration tool call', { start: '/agent' })\n  .click('tool-approval-gate', 'Approve migration execution')`,
+    render: () => <ToolApprovalGate id="tool-approval-gate" />,
+  },
+  {
+    id: 'subagent-swarm-board',
+    name: 'SubagentSwarmBoard',
+    gesture: 'ai',
+    gestureLabel: 'AI Agents · Multi-Agent Swarm',
+    summary: 'Coordinator swarm board tracking parallel workers (Carbon, Sol-1, Sol-2) with live progress and log inspector.',
+    sounds: ['tap', 'landed'],
+    agentActions: [
+      { label: 'Complete All Workers', action: 'completeAll' },
+      { label: 'Reset Swarm', action: 'resetSwarm' },
+      { label: 'Inspect Sol-1', action: 'selectWorker', payload: 'sol-1' },
+    ],
+    reactCode: `<SubagentSwarmBoard id="subagent-swarm-board" />`,
+    joploCode: `flow('Coordinate 3 parallel worker agents', { start: '/swarm' })\n  .click('subagent-swarm-board', 'Consolidate completed swarm')`,
+    render: () => <SubagentSwarmBoard id="subagent-swarm-board" />,
+  },
+  {
+    id: 'agent-plan-checklist',
+    name: 'AgentPlanChecklist',
+    gesture: 'ai',
+    gestureLabel: 'AI Agents · Executable Step Plan',
+    summary: '4-step agent execution plan with clickable step completion, live progress bar, and RollingNumber %.',
+    sounds: ['latch', 'paid'],
+    agentActions: [
+      { label: 'Advance Next Step', action: 'advanceStep' },
+      { label: 'Complete All (4/4)', action: 'setProgressStep', payload: 4 },
+      { label: 'Reset Plan', action: 'resetPlan' },
+    ],
+    reactCode: `<AgentPlanChecklist id="agent-plan-checklist" />`,
+    joploCode: `flow('Step through agent implementation plan', { start: '/plan' })\n  .click('agent-plan-checklist', 'Advance plan to completion')`,
+    render: () => <AgentPlanChecklist id="agent-plan-checklist" />,
+  },
+  {
+    id: 'artifact-canvas',
+    name: 'ArtifactCanvas',
+    gesture: 'ai',
+    gestureLabel: 'AI Agents · Preview / Code / Diff',
+    summary: 'Multi-version side artifact with instant switching between live interactive Preview, TSX Code, and v1→v2 Diff.',
+    sounds: ['tap', 'tick'],
+    agentActions: [
+      { label: 'View: Preview', action: 'setView', payload: 'preview' },
+      { label: 'View: TSX Code', action: 'setView', payload: 'code' },
+      { label: 'View: v1→v2 Diff', action: 'setView', payload: 'diff' },
+      { label: 'Version: v3', action: 'setVersion', payload: 'v3' },
+    ],
+    reactCode: `<ArtifactCanvas id="artifact-canvas" />`,
+    joploCode: `flow('Inspect generated artifact diff and live preview', { start: '/artifact' })\n  .select('artifact-canvas', 'diff')`,
+    render: () => <ArtifactCanvas id="artifact-canvas" />,
+  },
+  {
+    id: 'agent-memory-store',
+    name: 'AgentMemoryStore',
+    gesture: 'ai',
+    gestureLabel: 'AI Agents · Persistent Memory',
+    summary: 'Inspect, pin, delete, or append extracted long-term user preferences and project rules.',
+    sounds: ['pop', 'tap'],
+    agentActions: [
+      { label: '+ Add Memory Fact', action: 'addMemory', payload: 'Support both React 19 and Vue 3' },
+      { label: 'Reset Memories', action: 'resetMemories' },
+    ],
+    reactCode: `<AgentMemoryStore id="agent-memory-store" />`,
+    joploCode: `flow('Persist new architectural rule to agent memory', { start: '/memory' })\n  .click('agent-memory-store', 'Add memory fact')`,
+    render: () => <AgentMemoryStore id="agent-memory-store" />,
+  },
+  {
+    id: 'terminal-stream-card',
+    name: 'TerminalStreamCard',
+    gesture: 'ai',
+    gestureLabel: 'AI Agents · CLI Stream & Exit Code',
+    summary: 'Live command execution card with stdout lines, exit 0 / exit 1 status badge, and one-click Auto-Fix rerun.',
+    sounds: ['paid', 'deny', 'tap'],
+    agentActions: [
+      { label: 'Simulate Fail (Exit 1)', action: 'runFail' },
+      { label: 'Simulate Pass (Exit 0)', action: 'runPass' },
+      { label: 'Rerun Command', action: 'rerun' },
+    ],
+    reactCode: `<TerminalStreamCard id="terminal-stream-card" />`,
+    joploCode: `flow('Recover from failing CLI test run', { start: '/terminal' })\n  .click('terminal-stream-card', 'Auto-fix and rerun vitest')`,
+    render: () => <TerminalStreamCard id="terminal-stream-card" />,
+  },
+  {
+    id: 'rate-limit-banner',
+    name: 'RateLimitBanner',
+    gesture: 'ai',
+    gestureLabel: 'AI Agents · 429 Quota Fallback',
+    summary: 'Non-blocking quota exhaustion card with live countdown timer and instant fallback to Gemini 4 Carbon.',
+    sounds: ['paid', 'tap'],
+    agentActions: [
+      { label: 'Fallback → Gemini 4 Carbon', action: 'triggerFallback' },
+      { label: 'Simulate 429 Limit', action: 'resetLimit' },
+    ],
+    reactCode: `<RateLimitBanner id="rate-limit-banner" />`,
+    joploCode: `flow('Switch to fallback model on 429 rate limit', { start: '/chat' })\n  .click('rate-limit-banner', 'Switch to Gemini 4 Carbon')`,
+    render: () => <RateLimitBanner id="rate-limit-banner" />,
+  },
+  {
+    id: 'mcp-server-roster',
+    name: 'McpServerRoster',
+    gesture: 'ai',
+    gestureLabel: 'AI Agents · MCP Server Registry',
+    summary: 'Manage connected MCP servers (github-mcp, cloudflare, ego-browser) with health status and tool count odometer.',
+    sounds: ['latch', 'tap'],
+    agentActions: [
+      { label: 'Toggle cloudflare-workers', action: 'toggleServer', payload: 'cloudflare-workers' },
+      { label: 'Enable All MCP Servers', action: 'enableAll' },
+    ],
+    reactCode: `<McpServerRoster id="mcp-server-roster" />`,
+    joploCode: `flow('Enable Cloudflare MCP tool server', { start: '/mcp' })\n  .click('mcp-server-roster', 'Enable all MCP servers')`,
+    render: () => <McpServerRoster id="mcp-server-roster" />,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // III. Tactile Micro-Interaction, Workspace & Media Blocks (Original 28)
+  // ═══════════════════════════════════════════════════════════════════════
   {
     id: 'confirm-send',
     name: 'ConfirmSend',
@@ -81,15 +663,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Force Settled', action: 'setStage', payload: 'success' },
       { label: 'Reset Idle', action: 'reset' },
     ],
-    reactCode: `<StateButton
-  id="confirm-send"
-  title="Wire Transfer"
-  recipient="studio@joplo.app"
-  amount={1280}
-/>`,
-    joploCode: `flow('Approve wire transfer', { start: '/pay' })
-  .click('confirm-send', 'Arm confirmation')
-  .click('confirm-send', 'Commit transfer', done('Receipt #8841'))`,
+    reactCode: `<StateButton\n  id="confirm-send"\n  title="Wire Transfer"\n  recipient="studio@joplo.app"\n  amount={1280}\n/>`,
+    joploCode: `flow('Approve wire transfer', { start: '/pay' })\n  .click('confirm-send', 'Arm confirmation')\n  .click('confirm-send', 'Commit transfer', done('Receipt #8841'))`,
     render: () => <StateButton id="confirm-send" />,
   },
   {
@@ -105,14 +680,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Signal → Emerald', action: 'setSwatch', payload: 'emerald' },
       { label: 'Toggle Snap', action: 'toggleSnap' },
     ],
-    reactCode: `<ScrubPanel
-  id="scrub-panel"
-  defaultTension={72}
-  defaultRadius={14}
-  defaultSwatch="cobalt"
-/>`,
-    joploCode: `flow('Tune spring physics', { start: '/studio' })
-  .drag('scrub-panel', 'Scrub tension to 92%', set($.ui.tension, 92))`,
+    reactCode: `<ScrubPanel\n  id="scrub-panel"\n  defaultTension={72}\n  defaultRadius={14}\n  defaultSwatch="cobalt"\n/>`,
+    joploCode: `flow('Tune spring physics', { start: '/studio' })\n  .drag('scrub-panel', 'Scrub tension to 92%', set($.ui.tension, 92))`,
     render: () => <ScrubPanel id="scrub-panel" />,
   },
   {
@@ -126,13 +695,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Commit Deploy', action: 'confirm' },
       { label: 'Reset Track', action: 'reset' },
     ],
-    reactCode: `<SlideConfirm
-  id="slide-confirm"
-  label="Slide to deploy production"
-  confirmedLabel="Production deployed · v2.4.0"
-/>`,
-    joploCode: `flow('Release to production', { start: '/deploy' })
-  .drag('slide-confirm', 'Slide thumb to commit release', done('v2.4.0 live'))`,
+    reactCode: `<SlideConfirm\n  id="slide-confirm"\n  label="Slide to deploy production"\n  confirmedLabel="Production deployed · v2.4.0"\n/>`,
+    joploCode: `flow('Release to production', { start: '/deploy' })\n  .drag('slide-confirm', 'Slide thumb to commit release', done('v2.4.0 live'))`,
     render: () => <SlideConfirm id="slide-confirm" />,
   },
   {
@@ -140,19 +704,15 @@ const BLOCK_CATALOG: BlockSpec[] = [
     name: 'DynamicIsland',
     gesture: 'press',
     gestureLabel: 'Press · Spatial Morph',
-    summary: '3-stage morphing capsule (compact → active → expanded) with static-safe equalizer bars.',
+    summary: '3-stage morphing capsule (compact → active → expanded) with exact geometric corner radius transitions.',
     sounds: ['tap', 'pop', 'paid'],
     agentActions: [
       { label: 'Mode: Compact', action: 'setMode', payload: 'compact' },
       { label: 'Mode: Active', action: 'setMode', payload: 'active' },
       { label: 'Mode: Expanded', action: 'setMode', payload: 'expanded' },
     ],
-    reactCode: `<DynamicIsland
-  id="dynamic-island"
-  defaultMode="active"
-/>`,
-    joploCode: `flow('Expand live walkthrough capsule', { start: '/stage' })
-  .click('dynamic-island', 'Expand active voice session')`,
+    reactCode: `<DynamicIsland\n  id="dynamic-island"\n  defaultMode="active"\n/>`,
+    joploCode: `flow('Expand live walkthrough capsule', { start: '/stage' })\n  .click('dynamic-island', 'Expand active voice session')`,
     render: () => <DynamicIsland id="dynamic-island" />,
   },
   {
@@ -167,12 +727,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Set Cap $5,000', action: 'setLimit', payload: 5000 },
       { label: 'Collapse', action: 'close' },
     ],
-    reactCode: `<MorphCard
-  id="morph-card"
-  defaultOpened={false}
-/>`,
-    joploCode: `flow('Adjust worker spend cap inline', { start: '/billing' })
-  .click('morph-card', 'Open inline spend inspector')`,
+    reactCode: `<MorphCard\n  id="morph-card"\n  defaultOpened={false}\n/>`,
+    joploCode: `flow('Adjust worker spend cap inline', { start: '/billing' })\n  .click('morph-card', 'Open inline spend inspector')`,
     render: () => <MorphCard id="morph-card" />,
   },
   {
@@ -187,19 +743,15 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Inspect Oct ($74.2k)', action: 'selectMonth', payload: 'Oct' },
       { label: 'Inspect Nov ($89.6k)', action: 'selectMonth', payload: 'Nov' },
     ],
-    reactCode: `<MetricRibbon
-  id="metric-ribbon"
-  defaultMonth="Nov"
-/>`,
-    joploCode: `flow('Compare Q4 recurring volume', { start: '/metrics' })
-  .hover('metric-ribbon', 'Scrub from August to November')`,
+    reactCode: `<MetricRibbon\n  id="metric-ribbon"\n  defaultMonth="Nov"\n/>`,
+    joploCode: `flow('Compare Q4 recurring volume', { start: '/metrics' })\n  .hover('metric-ribbon', 'Scrub from August to November')`,
     render: () => <MetricRibbon id="metric-ribbon" />,
   },
   {
     id: 'ai-composer',
     name: 'AiComposer',
-    gesture: 'type',
-    gestureLabel: 'Type · Agent Native',
+    gesture: 'ai',
+    gestureLabel: 'AI Chat · Multi-Modal Input',
     summary: 'Multi-modal prompt composer with context attachment pills, model cycler, and quick polish chips.',
     sounds: ['tap', 'pop'],
     agentActions: [
@@ -211,39 +763,30 @@ const BLOCK_CATALOG: BlockSpec[] = [
       },
       { label: 'Dispatch Prompt', action: 'submit' },
     ],
-    reactCode: `<Composer
-  id="ai-composer"
-  defaultModel="Claude 4.6"
-/>`,
-    joploCode: `flow('Ask agent to refine UI', { start: '/chat' })
-  .type('ai-composer', 'Convert modal into an inline MorphCard')
-  .click('ai-composer', 'Dispatch prompt')`,
+    reactCode: `<Composer\n  id="ai-composer"\n  defaultModel="Claude 4.6"\n/>`,
+    joploCode: `flow('Ask agent to refine UI', { start: '/chat' })\n  .type('ai-composer', 'Convert modal into an inline MorphCard')\n  .click('ai-composer', 'Dispatch prompt')`,
     render: () => <Composer id="ai-composer" />,
   },
   {
     id: 'thinking-morph',
     name: 'ThinkingMorph',
     gesture: 'ai',
-    gestureLabel: 'AI · Reasoning → Artifact',
-    summary: 'Collapsible reasoning trace and tool execution steps that settle into a clickable artifact pill.',
+    gestureLabel: 'AI Agents · Shimmer Reasoning',
+    summary: 'Prompt-Kit style shimmer reasoning trace and vertical step spine that settles into an artifact pill.',
     sounds: ['tap', 'paid'],
     agentActions: [
       { label: 'Step 1: Analyzing', action: 'setStep', payload: 0 },
       { label: 'Step 2: Patching', action: 'setStep', payload: 1 },
       { label: 'Step 3: Artifact Ready', action: 'setStep', payload: 2 },
     ],
-    reactCode: `<ThinkingMorph
-  id="thinking-morph"
-  defaultStep={2}
-/>`,
-    joploCode: `flow('Stream agent reasoning into artifact', { start: '/agent' })
-  .system('Tools complete', set($.ui.step, 2))`,
+    reactCode: `<ThinkingMorph\n  id="thinking-morph"\n  defaultStep={2}\n/>`,
+    joploCode: `flow('Stream agent reasoning into artifact', { start: '/agent' })\n  .system('Tools complete', set($.ui.step, 2))`,
     render: () => <ThinkingMorph id="thinking-morph" />,
   },
   {
     id: 'command-palette',
     name: 'CommandPalette',
-    gesture: 'type',
+    gesture: 'hover',
     gestureLabel: 'Type · Roving Focus',
     summary: 'Keyboard-navigable launcher with instant filtering, ↑/↓ roving highlight, and Kbd badges.',
     sounds: ['tick', 'pop'],
@@ -252,13 +795,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Clear Filter', action: 'search', payload: '' },
       { label: 'Execute Highlighted', action: 'execute' },
     ],
-    reactCode: `<CommandPalette
-  id="command-palette"
-  onExecute={(cmd) => console.log(cmd)}
-/>`,
-    joploCode: `flow('Launch command via keyboard', { start: '/workspace' })
-  .type('command-palette', 'Audio')
-  .press('Enter', 'Trigger procedural sound synth')`,
+    reactCode: `<CommandPalette\n  id="command-palette"\n  onExecute={(cmd) => console.log(cmd)}\n/>`,
+    joploCode: `flow('Launch command via keyboard', { start: '/workspace' })\n  .type('command-palette', 'Audio')\n  .press('Enter', 'Trigger procedural sound synth')`,
     render: () => <CommandPalette id="command-palette" />,
   },
   {
@@ -275,8 +813,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Undo Latest', action: 'undoTop' },
     ],
     reactCode: `<ToastStack id="toast-stack" />`,
-    joploCode: `flow('Inspect stacked notifications & undo', { start: '/app' })
-  .hover('toast-stack', 'Fan out recent events')`,
+    joploCode: `flow('Inspect stacked notifications & undo', { start: '/app' })\n  .hover('toast-stack', 'Fan out recent events')`,
     render: () => <ToastStack id="toast-stack" />,
   },
   {
@@ -291,33 +828,26 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Center 50%', action: 'setSplit', payload: 50 },
       { label: 'Reveal 80%', action: 'setSplit', payload: 80 },
     ],
-    reactCode: `<SplitCompare
-  id="split-compare"
-  defaultSplit={54}
-/>`,
-    joploCode: `flow('Compare wireframe vs concentric craft', { start: '/review' })
-  .drag('split-compare', 'Scrub comparison divider to 80%')`,
+    reactCode: `<SplitCompare\n  id="split-compare"\n  defaultSplit={54}\n/>`,
+    joploCode: `flow('Compare wireframe vs concentric craft', { start: '/review' })\n  .drag('split-compare', 'Scrub comparison divider to 80%')`,
     render: () => <SplitCompare id="split-compare" />,
   },
   {
     id: 'rolling-odometer',
     name: 'RollingOdometer',
-    gesture: 'ai',
-    gestureLabel: 'AI & Data · Live Counter',
+    gesture: 'press',
+    gestureLabel: 'Press · Live Odometer',
     summary: 'Standalone per-digit rolling odometer card with instant step buttons for live metric storytelling.',
     sounds: ['tick', 'pop'],
     agentActions: [],
     reactCode: `<RollingNumber value={148920} prefix="$" />`,
-    joploCode: `flow('Update revenue counter', { start: '/dashboard' })
-  .system('New enterprise seat added', set($.data.arr, 148920))`,
+    joploCode: `flow('Update revenue counter', { start: '/dashboard' })\n  .system('New enterprise seat added', set($.data.arr, 148920))`,
     render: () => <OdometerPlayground />,
   },
-
-  // ── 13-28: Extended Tactile, Workspace & AI/Media Blocks ──────────────
   {
     id: 'otp-field',
     name: 'OneTimeCode',
-    gesture: 'type',
+    gesture: 'hover',
     gestureLabel: 'Type · 6-Digit Verification',
     summary: 'Concentric 6-slot OTP verification with auto-advance, backspace roving, paste support, and verified chime.',
     sounds: ['tick', 'paid', 'tap'],
@@ -325,18 +855,14 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Paste 428-910', action: 'fill', payload: '428910' },
       { label: 'Clear Slots', action: 'clear' },
     ],
-    reactCode: `<OtpField
-  id="otp-field"
-  defaultCode="4289"
-/>`,
-    joploCode: `flow('Verify 2FA code', { start: '/login/2fa' })
-  .type('otp-field', '428910', done('2FA verified'))`,
+    reactCode: `<OtpField\n  id="otp-field"\n  defaultCode="4289"\n/>`,
+    joploCode: `flow('Verify 2FA code', { start: '/login/2fa' })\n  .type('otp-field', '428910', done('2FA verified'))`,
     render: () => <OtpField id="otp-field" />,
   },
   {
     id: 'pass-strength',
     name: 'PassReveal',
-    gesture: 'type',
+    gesture: 'hover',
     gestureLabel: 'Type · Optical Blur & Entropy',
     summary: 'Optical blur-to-clear password reveal with 4-bar live entropy gauge and rule verification pills.',
     sounds: ['pop', 'tap'],
@@ -345,12 +871,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Weak Password', action: 'setPassword', payload: 'short' },
       { label: 'Vault Password', action: 'setPassword', payload: 'Juice#Craft2026!' },
     ],
-    reactCode: `<PassStrength
-  id="pass-strength"
-  defaultValue="Juice#Craft2026!"
-/>`,
-    joploCode: `flow('Inspect signing key strength', { start: '/security' })
-  .click('pass-strength', 'Unblur vault signing key')`,
+    reactCode: `<PassStrength\n  id="pass-strength"\n  defaultValue="Juice#Craft2026!"\n/>`,
+    joploCode: `flow('Inspect signing key strength', { start: '/security' })\n  .click('pass-strength', 'Unblur vault signing key')`,
     render: () => <PassStrength id="pass-strength" />,
   },
   {
@@ -365,13 +887,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Select 16:30 PST', action: 'selectSlot', payload: '16:30' },
       { label: 'Confirm Booking', action: 'book' },
     ],
-    reactCode: `<TimeSlotPicker
-  id="time-slot-picker"
-  defaultDay="wed"
-  defaultSlot="14:00"
-/>`,
-    joploCode: `flow('Book design review slot', { start: '/schedule' })
-  .click('time-slot-picker', 'Hold 14:00 PST slot', done('Booked'))`,
+    reactCode: `<TimeSlotPicker\n  id="time-slot-picker"\n  defaultDay="wed"\n  defaultSlot="14:00"\n/>`,
+    joploCode: `flow('Book design review slot', { start: '/schedule' })\n  .click('time-slot-picker', 'Hold 14:00 PST slot', done('Booked'))`,
     render: () => <TimeSlotPicker id="time-slot-picker" />,
   },
   {
@@ -386,12 +903,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Elevated (68%)', action: 'setValue', payload: 68 },
       { label: 'Critical (92%)', action: 'setValue', payload: 92 },
     ],
-    reactCode: `<RadialDial
-  id="radial-dial"
-  defaultValue={68}
-/>`,
-    joploCode: `flow('Monitor context window pressure', { start: '/agent' })
-  .drag('radial-dial', 'Scrub context load to 92%')`,
+    reactCode: `<RadialDial\n  id="radial-dial"\n  defaultValue={68}\n/>`,
+    joploCode: `flow('Monitor context window pressure', { start: '/agent' })\n  .drag('radial-dial', 'Scrub context load to 92%')`,
     render: () => <RadialDial id="radial-dial" />,
   },
   {
@@ -407,8 +920,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Reset Rows', action: 'reset' },
     ],
     reactCode: `<SwipeCard id="swipe-card" />`,
-    joploCode: `flow('Triage pull requests with undo', { start: '/inbox' })
-  .click('swipe-card', 'Reveal approve action and merge PR #412')`,
+    joploCode: `flow('Triage pull requests with undo', { start: '/inbox' })\n  .click('swipe-card', 'Reveal approve action and merge PR #412')`,
     render: () => <SwipeCard id="swipe-card" />,
   },
   {
@@ -424,8 +936,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Apply AI Tighten', action: 'applyAiPolish' },
     ],
     reactCode: `<SelectionToolbar id="selection-toolbar" />`,
-    joploCode: `flow('Rewrite selected copy inline', { start: '/editor' })
-  .click('selection-toolbar', 'Morph toolbar into AI rewrite mode')`,
+    joploCode: `flow('Rewrite selected copy inline', { start: '/editor' })\n  .click('selection-toolbar', 'Morph toolbar into AI rewrite mode')`,
     render: () => <SelectionToolbar id="selection-toolbar" />,
   },
   {
@@ -433,7 +944,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
     name: 'InlineDataGrid',
     gesture: 'workspace',
     gestureLabel: 'Workspace · Inline-Edit Table',
-    summary: 'High-density operator table with click-to-edit numeric cells, row selection, and contextual batch boost.',
+    summary: 'High-density operator table with concentric Checkbox, click-to-edit numeric cells, and batch boost.',
     sounds: ['tap', 'latch', 'paid'],
     agentActions: [
       { label: 'Edit Row 2 Quota', action: 'editSecondRow' },
@@ -441,9 +952,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Batch +200 RPS', action: 'boostSelected' },
     ],
     reactCode: `<DataGrid id="data-grid" />`,
-    joploCode: `flow('Edit worker RPS quota inline', { start: '/workers' })
-  .click('data-grid', 'Edit juice-sync RPS cell')
-  .type('data-grid', '980')`,
+    joploCode: `flow('Edit worker RPS quota inline', { start: '/workers' })\n  .click('data-grid', 'Edit juice-sync RPS cell')\n  .type('data-grid', '980')`,
     render: () => <DataGrid id="data-grid" />,
   },
   {
@@ -459,15 +968,14 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Toggle src/ Folder', action: 'toggleFolder', payload: 'src' },
     ],
     reactCode: `<TreeExplorer id="tree-explorer" />`,
-    joploCode: `flow('Navigate package source tree', { start: '/repo' })
-  .click('tree-explorer', 'Inspect behaviors.tsx')`,
+    joploCode: `flow('Navigate package source tree', { start: '/repo' })\n  .click('tree-explorer', 'Inspect behaviors.tsx')`,
     render: () => <TreeExplorer id="tree-explorer" />,
   },
   {
     id: 'resizable-split',
     name: 'ResizablePanels',
-    gesture: 'workspace',
-    gestureLabel: 'Workspace · Split Layout',
+    gesture: 'drag',
+    gestureLabel: 'Drag · Split Layout',
     summary: 'Dual-pane workspace with draggable divider, keyboard arrow support, and double-click 50/50 reset.',
     sounds: ['tick', 'pop'],
     agentActions: [
@@ -475,12 +983,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Reset 50/50', action: 'reset50' },
       { label: 'Wide Nav 64%', action: 'setRatio', payload: 64 },
     ],
-    reactCode: `<ResizableSplit
-  id="resizable-split"
-  defaultRatio={42}
-/>`,
-    joploCode: `flow('Resize workspace panels', { start: '/ide' })
-  .drag('resizable-split', 'Expand main stage to 72%')`,
+    reactCode: `<ResizableSplit\n  id="resizable-split"\n  defaultRatio={42}\n/>`,
+    joploCode: `flow('Resize workspace panels', { start: '/ide' })\n  .drag('resizable-split', 'Expand main stage to 72%')`,
     render: () => <ResizableSplit id="resizable-split" />,
   },
   {
@@ -496,8 +1000,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Toggle Region Token', action: 'toggleRegion' },
     ],
     reactCode: `<FilterBar id="filter-bar" />`,
-    joploCode: `flow('Filter edge deployments by latency', { start: '/deployments' })
-  .click('filter-bar', 'Cycle status and latency tokens')`,
+    joploCode: `flow('Filter edge deployments by latency', { start: '/deployments' })\n  .click('filter-bar', 'Cycle status and latency tokens')`,
     render: () => <FilterBar id="filter-bar" />,
   },
   {
@@ -511,12 +1014,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Open Rollback Sheet', action: 'open' },
       { label: 'Dismiss Sheet', action: 'close' },
     ],
-    reactCode: `<DrawerSheet
-  id="drawer-sheet"
-  defaultOpen={false}
-/>`,
-    joploCode: `flow('Preview rollback in non-blocking sheet', { start: '/prod' })
-  .click('drawer-sheet', 'Open rollback sheet over scaled stage')`,
+    reactCode: `<DrawerSheet\n  id="drawer-sheet"\n  defaultOpen={false}\n/>`,
+    joploCode: `flow('Preview rollback in non-blocking sheet', { start: '/prod' })\n  .click('drawer-sheet', 'Open rollback sheet over scaled stage')`,
     render: () => <DrawerSheet id="drawer-sheet" />,
   },
   {
@@ -532,8 +1031,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Tab: Live Tail', action: 'setTab', payload: 'logs' },
     ],
     reactCode: `<TabsMorph id="tabs-morph" />`,
-    joploCode: `flow('Switch between service overview and live logs', { start: '/worker' })
-  .select('tabs-morph', 'Live Tail')`,
+    joploCode: `flow('Switch between service overview and live logs', { start: '/worker' })\n  .select('tabs-morph', 'Live Tail')`,
     render: () => <TabsMorph id="tabs-morph" />,
   },
   {
@@ -548,8 +1046,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Reset Full Window', action: 'resetTrim' },
     ],
     reactCode: `<AudioWaveTrim id="audio-wave-trim" />`,
-    joploCode: `flow('Trim voiceover take', { start: '/voice' })
-  .click('audio-wave-trim', 'Tighten voiceover trim window')`,
+    joploCode: `flow('Trim voiceover take', { start: '/voice' })\n  .click('audio-wave-trim', 'Tighten voiceover trim window')`,
     render: () => <AudioWaveTrim id="audio-wave-trim" />,
   },
   {
@@ -563,12 +1060,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Apply AI Patch', action: 'apply' },
       { label: 'Revert to Diff', action: 'revert' },
     ],
-    reactCode: `<CodeDiffReveal
-  id="code-diff-reveal"
-  defaultApplied={false}
-/>`,
-    joploCode: `flow('Accept AI code patch', { start: '/review' })
-  .click('code-diff-reveal', 'Apply tokens.css patch')`,
+    reactCode: `<CodeDiffReveal\n  id="code-diff-reveal"\n  defaultApplied={false}\n/>`,
+    joploCode: `flow('Accept AI code patch', { start: '/review' })\n  .click('code-diff-reveal', 'Apply tokens.css patch')`,
     render: () => <CodeDiffReveal id="code-diff-reveal" />,
   },
   {
@@ -582,12 +1075,8 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Show Loading Shimmer', action: 'setLoading', payload: true },
       { label: 'Resolve Loaded Card', action: 'setLoading', payload: false },
     ],
-    reactCode: `<SkeletonMorph
-  id="skeleton-morph"
-  defaultLoading={false}
-/>`,
-    joploCode: `flow('Transition from loading shimmer to live data', { start: '/cluster' })
-  .system('Cluster status fetched', set($.ui.loading, false))`,
+    reactCode: `<SkeletonMorph\n  id="skeleton-morph"\n  defaultLoading={false}\n/>`,
+    joploCode: `flow('Transition from loading shimmer to live data', { start: '/cluster' })\n  .system('Cluster status fetched', set($.ui.loading, false))`,
     render: () => <SkeletonMorph id="skeleton-morph" />,
   },
   {
@@ -602,8 +1091,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
       { label: 'Connect All Sources', action: 'connectAll' },
     ],
     reactCode: `<TransferList id="transfer-list" />`,
-    joploCode: `flow('Bind Postgres MCP source', { start: '/integrations' })
-  .click('transfer-list', 'Move Postgres into Active bindings')`,
+    joploCode: `flow('Bind Postgres MCP source', { start: '/integrations' })\n  .click('transfer-list', 'Move Postgres into Active bindings')`,
     render: () => <TransferList id="transfer-list" />,
   },
 ];
@@ -612,7 +1100,7 @@ function OdometerPlayground() {
   const { playSound } = useJuice();
   const [val, setVal] = useState(148920);
   return (
-    <div className="j-slab" style={{ width: 304, padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="j-slab j-fnd-card" style={{ padding: 14, gap: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--juice-mute)' }}>Annual Recurring Revenue</span>
         <Badge tone="ok">+24.8% YoY</Badge>
@@ -648,11 +1136,27 @@ function BenchInner() {
   const { theme, fill, sound, animate, setTheme, setFill, setSound, setAnimate } = useJuice();
   const [category, setCategory] = useState<GestureCategory>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedId, setSelectedId] = useState<string>('scrub-panel');
+  const [selectedId, setSelectedId] = useState<string>('slash-mention-composer');
   const [showSoundStrip, setShowSoundStrip] = useState<boolean>(true);
-  const [codeTab, setCodeTab] = useState<'react' | 'joplo'>('react');
+  const [codeTab, setCodeTab] = useState<'react' | 'vue' | 'joplo'>('react');
   const [copied, setCopied] = useState<boolean>(false);
   const [agentTick, setAgentTick] = useState<number>(0);
+
+  const counts = useMemo(() => {
+    const map: Record<GestureCategory, number> = {
+      all: BLOCK_CATALOG.length,
+      foundation: 0,
+      ai: 0,
+      press: 0,
+      drag: 0,
+      hover: 0,
+      workspace: 0,
+    };
+    for (const b of BLOCK_CATALOG) {
+      map[b.gesture]++;
+    }
+    return map;
+  }, []);
 
   const filteredBlocks = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -686,9 +1190,14 @@ function BenchInner() {
     setAgentTick((t) => t + 1);
   };
 
+  const activeCodeText = useMemo(() => {
+    if (codeTab === 'react') return selectedBlock.reactCode;
+    if (codeTab === 'vue') return deriveVueSnippet(selectedBlock);
+    return selectedBlock.joploCode;
+  }, [codeTab, selectedBlock]);
+
   const copySnippet = () => {
-    const text = codeTab === 'react' ? selectedBlock.reactCode : selectedBlock.joploCode;
-    navigator.clipboard?.writeText(text).catch(() => {});
+    navigator.clipboard?.writeText(activeCodeText).catch(() => {});
     playJuiceSound('tap');
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
@@ -704,10 +1213,10 @@ function BenchInner() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="bench-title">Juice</span>
-                <Badge tone="signal">v0.2 · 28 Blocks</Badge>
+                <Badge tone="neutral">v0.3 · {BLOCK_CATALOG.length} Blocks · React &amp; Vue 3</Badge>
               </div>
               <div className="bench-subtitle">
-                Tactile React UI Blocks · Headless Behaviors · 3KB Web Audio Synth · Joplo Ready
+                Concentric Color-Mix UI · Foundation + Deep AI Agents + Micro-Interactions · 3KB Web Audio Synth
               </div>
             </div>
           </div>
@@ -819,13 +1328,13 @@ function BenchInner() {
           <div className="bench-filter-bar">
             <SegmentedControl<GestureCategory>
               options={[
-                { value: 'all', label: `All (${BLOCK_CATALOG.length})` },
-                { value: 'press', label: 'Press' },
-                { value: 'drag', label: 'Drag' },
-                { value: 'hover', label: 'Hover' },
-                { value: 'type', label: 'Type' },
-                { value: 'workspace', label: 'Workspace' },
-                { value: 'ai', label: 'AI & Media' },
+                { value: 'all', label: `All (${counts.all})` },
+                { value: 'foundation', label: `Foundation (${counts.foundation})` },
+                { value: 'ai', label: `AI & Agents (${counts.ai})` },
+                { value: 'press', label: `Press (${counts.press})` },
+                { value: 'drag', label: `Drag (${counts.drag})` },
+                { value: 'hover', label: `Hover & Type (${counts.hover})` },
+                { value: 'workspace', label: `Workspace (${counts.workspace})` },
               ]}
               value={category}
               onChange={setCategory}
@@ -847,7 +1356,7 @@ function BenchInner() {
               <input
                 type="text"
                 aria-label="Filter blocks"
-                placeholder="Filter 28 blocks…"
+                placeholder={`Filter ${BLOCK_CATALOG.length} blocks…`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -942,7 +1451,7 @@ function BenchInner() {
                 <span style={{ fontSize: 16, fontWeight: 650, letterSpacing: '-0.02em' }}>
                   {selectedBlock.name}
                 </span>
-                <Badge tone="signal">{selectedBlock.gestureLabel}</Badge>
+                <Badge tone="neutral">{selectedBlock.gestureLabel}</Badge>
               </div>
               <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--juice-mute)', lineHeight: 1.45 }}>
                 {selectedBlock.summary}
@@ -987,7 +1496,7 @@ function BenchInner() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
               <span style={{ fontWeight: 600 }}>Concentric color-mix Ramp</span>
-              <span style={{ color: 'var(--juice-mute)', fontSize: 11 }}>20px → 14px → 10px</span>
+              <span style={{ color: 'var(--juice-mute)', fontSize: 11 }}>320px · 20px → 14px → 10px</span>
             </div>
             <div className="bench-token-ramp">
               {[
@@ -1009,13 +1518,14 @@ function BenchInner() {
             </div>
           </div>
 
-          {/* 3. Code Snippets: Standalone React vs Joplo Flow */}
+          {/* 3. Code Snippets: React TSX | Vue 3 | Joplo Flow */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <SegmentedControl
                 options={[
-                  { value: 'react', label: 'React TSX', icon: <Code2 size={12} /> },
-                  { value: 'joplo', label: 'Joplo Flow', icon: <Sparkles size={12} /> },
+                  { value: 'react', label: 'React', icon: <Code2 size={12} /> },
+                  { value: 'vue', label: 'Vue 3', icon: <Layers size={12} /> },
+                  { value: 'joplo', label: 'Joplo', icon: <Terminal size={12} /> },
                 ]}
                 value={codeTab}
                 onChange={setCodeTab}
@@ -1027,8 +1537,8 @@ function BenchInner() {
               </button>
             </div>
 
-            <pre className="bench-code-box">
-              {codeTab === 'react' ? selectedBlock.reactCode : selectedBlock.joploCode}
+            <pre className="bench-code-box" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {activeCodeText}
             </pre>
           </div>
         </aside>

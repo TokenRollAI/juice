@@ -31,7 +31,7 @@ import {
   useRovingFocus,
   useScrubDrag,
 } from './behaviors.tsx';
-import { Badge, Kbd, RollingNumber, SegmentedControl } from './components.tsx';
+import { Badge, Checkbox, Kbd, RollingNumber, SegmentedControl } from './components.tsx';
 
 // ---------------------------------------------------------------------------
 // 13. OtpField (OneTimeCode — 6-Digit Auto-Advance & Paste Verification)
@@ -735,14 +735,14 @@ export function SelectionToolbar({ id = 'selection-toolbar' }: { id?: string }) 
                 setAiMode(true);
               }}
             >
-              <Sparkles size={13} />
+              <span className="j-status-dot" data-tone="signal" />
               <span>Rewrite</span>
             </button>
           </>
         ) : (
           <>
             <button type="button" className="j-sel-tool" data-active="true" onClick={applyAiPolish}>
-              <Sparkles size={12} />
+              <span className="j-status-dot" data-tone="ok" />
               <span>Tighten copy</span>
             </button>
             <button
@@ -867,14 +867,12 @@ export function DataGrid({ id = 'data-grid' }: { id?: string }) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.id} className="j-grid-row" data-selected={row.selected ? 'true' : undefined}>
-              <td>
-                <input
-                  type="checkbox"
+              <td style={{ verticalAlign: 'middle' }}>
+                <Checkbox
                   aria-label={`Select ${row.service}`}
                   checked={row.selected}
-                  onChange={() => {
-                    playSound('tap');
-                    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, selected: !r.selected } : r)));
+                  onChange={(next) => {
+                    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, selected: next } : r)));
                   }}
                 />
               </td>

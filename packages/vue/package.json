@@ -1,0 +1,21 @@
+{
+  "name": "@juice-ui/vue",
+  "version": "0.2.0",
+  "description": "Vue 3 tactile UI components, micro-interactions, headless composables, and AI agent blocks for Juice UI.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "../juice/src/styles.css"
+  },
+  "dependencies": {
+    "@juice-ui/react": "workspace:*",
+    "clsx": "2.1.1"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0 || ^3.5.0"
+  },
+  "devDependencies": {
+    "vue": "^3.5.13"
+  }
+}

@@ -10,6 +10,9 @@
  * 4. Storyboard-Safe Motion: [data-animate="off"] disables transitions for deterministic frames.
  */
 
+@import './styles-ai.css';
+@import './styles-foundation.css';
+
 .juice-root,
 :root {
   --juice-font-ui: "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
@@ -89,19 +92,19 @@
   --juice-edge: color-mix(in srgb, var(--fill-on) 8%, transparent);
 }
 
-/* In dark/solid fill, quiet steps step up one notch so rows and tracks separate cleanly */
+/* In dark/solid fill, calibrate steps for clear separation between row track (w6) and active fill (w20) */
 .juice-root[data-fill="dark"],
 .juice-root[data-fill="dark"] .j-slab,
 .juice-root[data-tone="solid"] .j-slab,
 .j-slab[data-fill="dark"] {
-  --juice-soft: color-mix(in srgb, var(--fill-on) 82%, var(--fill-slab));
+  --juice-soft: color-mix(in srgb, var(--fill-on) 84%, var(--fill-slab));
   --juice-mute: color-mix(in srgb, var(--fill-on) 60%, var(--fill-slab));
-  --juice-faint: color-mix(in srgb, var(--fill-on) 40%, var(--fill-slab));
-  --juice-w4: color-mix(in srgb, var(--fill-on) 7%, var(--fill-slab));
-  --juice-w6: color-mix(in srgb, var(--fill-on) 11%, var(--fill-slab));
-  --juice-w12: color-mix(in srgb, var(--fill-on) 18%, var(--fill-slab));
-  --juice-w20: color-mix(in srgb, var(--fill-on) 28%, var(--fill-slab));
-  --juice-edge: color-mix(in srgb, var(--fill-on) 12%, transparent);
+  --juice-faint: color-mix(in srgb, var(--fill-on) 38%, var(--fill-slab));
+  --juice-w4: color-mix(in srgb, var(--fill-on) 5%, var(--fill-slab));
+  --juice-w6: color-mix(in srgb, var(--fill-on) 8.5%, var(--fill-slab));
+  --juice-w12: color-mix(in srgb, var(--fill-on) 17%, var(--fill-slab));
+  --juice-w20: color-mix(in srgb, var(--fill-on) 27%, var(--fill-slab));
+  --juice-edge: color-mix(in srgb, var(--fill-on) 11%, transparent);
 }
 
 /* Deterministic Snapshot Mode (Joplo Storyboard / Frame Capture) */
@@ -256,6 +259,92 @@
   outline-offset: 2px;
 }
 
+/* Tactile Concentric Checkbox (Replaces raw browser <input type="checkbox">) */
+.j-checkbox {
+  width: 17px;
+  height: 17px;
+  border-radius: 5.5px;
+  border: 0;
+  padding: 0;
+  background: var(--juice-w12);
+  box-shadow: inset 0 0 0 1px var(--juice-edge);
+  color: transparent;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 140ms ease, color 140ms ease, transform 130ms var(--juice-out), box-shadow 140ms ease;
+}
+.j-checkbox:hover {
+  background: var(--juice-w20);
+}
+.j-checkbox[data-checked="true"] {
+  background: var(--fill-on);
+  color: var(--fill-slab);
+  box-shadow: none;
+}
+.j-checkbox:active {
+  transform: scale(0.9);
+}
+.j-checkbox:focus-visible {
+  outline: 2px solid var(--juice-signal);
+  outline-offset: 2px;
+}
+
+/* Prompt-Kit Style Text Shimmer & Status Dot (Replaces cheesy Sparkles icon) */
+.j-text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--juice-soft) 0%,
+    var(--fill-on) 45%,
+    var(--juice-mute) 55%,
+    var(--juice-soft) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: j-text-shimmer-anim 2.6s linear infinite;
+}
+@keyframes j-text-shimmer-anim {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+.j-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--juice-mute);
+  display: inline-block;
+  flex-shrink: 0;
+}
+.j-status-dot[data-tone="ok"] {
+  background: var(--juice-ok);
+}
+.j-status-dot[data-tone="warn"] {
+  background: var(--juice-warn);
+}
+.j-status-dot[data-tone="signal"] {
+  background: var(--juice-signal);
+}
+.j-status-dot[data-pulse="true"] {
+  animation: j-dot-pulse 1.4s ease-in-out infinite;
+}
+@keyframes j-dot-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
 /* ── 1. StateButton (ConfirmSend / Multi-state Morph Button) ──────── */
 
 .j-state-card {
@@ -366,12 +455,13 @@
   top: 0;
   bottom: 0;
   border-radius: var(--juice-r-inner);
-  background: var(--juice-w12);
+  background: color-mix(in srgb, var(--fill-on) 19%, var(--fill-slab));
+  box-shadow: inset -1.5px 0 0 color-mix(in srgb, var(--fill-on) 22%, transparent);
   transition: width 110ms var(--juice-out), background-color 150ms ease;
   pointer-events: none;
 }
 .j-scrub-row[data-held="true"] .j-scrub-fill {
-  background: var(--juice-w20);
+  background: color-mix(in srgb, var(--fill-on) 27%, var(--fill-slab));
   transition: background-color 150ms ease;
 }
 .j-scrub-label {
@@ -502,38 +592,43 @@
   color: #ffffff;
 }
 
-/* ── 4. DynamicIsland (Multi-mode Morphing Capsule) ──────────────── */
+/* ── 4. DynamicIsland (Multi-mode Morphing Capsule — Zero Corner Glitch) ── */
 
 .j-island-stage {
-  width: 312px;
+  width: 316px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
 }
 .j-island {
-  background: #0e0f12;
-  color: #f4f3f1;
-  border-radius: 26px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 14px 32px -8px rgba(0, 0, 0, 0.36);
+  background: var(--fill-slab);
+  color: var(--fill-on);
+  /* Exact geometric capsule radius (never 999px -> 24px with overshoot bezier!) */
+  border-radius: 20px;
+  box-shadow: 0 0 0 1px var(--juice-edge), 0 10px 26px -6px rgba(0, 0, 0, 0.12);
   overflow: hidden;
-  transition: width 300ms var(--juice-pop), border-radius 300ms var(--juice-pop), padding 260ms var(--juice-out);
+  transition:
+    width 260ms var(--juice-out),
+    border-radius 240ms var(--juice-out),
+    padding 240ms var(--juice-out),
+    background-color 180ms ease;
   cursor: pointer;
 }
 .j-island[data-mode="compact"] {
-  width: 196px;
-  padding: 8px 14px;
-  border-radius: 999px;
+  width: 204px;
+  padding: 9px 14px;
+  border-radius: 19px;
 }
 .j-island[data-mode="active"] {
-  width: 248px;
+  width: 252px;
   padding: 10px 16px;
-  border-radius: 999px;
+  border-radius: 21px;
 }
 .j-island[data-mode="expanded"] {
-  width: 298px;
+  width: 312px;
   padding: 14px 16px;
-  border-radius: 24px;
+  border-radius: 20px;
   cursor: default;
 }
 .j-wave-bars {
@@ -756,40 +851,55 @@
   transform: scale(0.92);
 }
 
-/* ── 9. ThinkingMorph (Agent Reasoning -> Tool Call -> Artifact) ─── */
+/* ── 9. ThinkingMorph (Prompt-Kit Style Reasoning -> Steps -> Artifact) ─── */
 
 .j-thinking-card {
-  width: 328px;
-  padding: 8px;
+  width: 320px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .j-thinking-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: 8px 11px;
   border: 0;
   border-radius: 12px;
   background: var(--juice-w6);
   color: var(--fill-on);
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
+  transition: background-color 140ms ease;
+}
+.j-thinking-header:hover {
+  background: var(--juice-w12);
 }
 .j-thinking-steps {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 6px;
+  gap: 2px;
+  padding: 2px 4px 2px 16px;
+}
+.j-thinking-steps::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--juice-w12);
 }
 .j-thinking-step {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 12px;
   padding: 5px 8px;
   border-radius: 9px;
   color: var(--juice-soft);
@@ -1499,7 +1609,40 @@
   }
 }
 
+/* Unified 320px Card Width Rhythm across all Bench blocks */
+.j-state-card,
+.j-scrub-panel,
+.j-slide-wrap,
+.j-island-stage,
+.j-morph-card,
+.j-metric-card,
+.j-composer,
+.j-thinking-card,
+.j-cmd,
+.j-toast-stage,
+.j-split-card,
+.j-otp-card,
+.j-pass-card,
+.j-slot-card,
+.j-dial-card,
+.j-swipe-card,
+.j-sel-card,
+.j-grid-card,
+.j-tree-card,
+.j-resize-card,
+.j-filter-card,
+.j-drawer-card,
+.j-tabs-card,
+.j-trim-card,
+.j-diff-card,
+.j-skel-card,
+.j-transfer-card,
+.j-ai-card {
+  width: 320px !important;
+}
+
 /* ── 28. TransferList (Dual-Bucket Source Connector Transfer) ───── */
+
 
 .j-transfer-card {
   width: 328px;

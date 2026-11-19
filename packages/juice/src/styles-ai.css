@@ -1,0 +1,219 @@
+/**
+ * Juice Deep AI & Agent Component Suite Styles
+ * Shared by @juice-ui/react and @juice-ui/vue.
+ * Uses the exact same --fill-on / --fill-slab 6-step color-mix ramp and concentric radii.
+ */
+
+.j-ai-card {
+  width: 320px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.j-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+}
+
+.j-ai-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.j-ai-sub {
+  font-size: 11.5px;
+  color: var(--juice-mute);
+}
+
+.j-ai-surface {
+  border-radius: var(--juice-r-inner);
+  background: var(--juice-w6);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.j-ai-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border-radius: 11px;
+  background: var(--juice-w6);
+  font-size: 12.5px;
+  transition: background-color 140ms ease;
+}
+
+.j-ai-row:hover {
+  background: var(--juice-w12);
+}
+
+.j-ai-pill-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 0;
+  background: var(--juice-w6);
+  color: var(--juice-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, transform 130ms var(--juice-out);
+}
+
+.j-ai-pill-btn:hover {
+  background: var(--juice-w12);
+  color: var(--fill-on);
+}
+
+.j-ai-pill-btn[data-active="true"],
+.j-ai-pill-btn[data-primary="true"] {
+  background: var(--fill-on);
+  color: var(--fill-slab);
+}
+
+.j-ai-pill-btn[data-tone="ok"] {
+  background: color-mix(in srgb, var(--juice-ok) 16%, var(--fill-slab));
+  color: var(--juice-ok);
+}
+
+.j-ai-pill-btn[data-tone="danger"] {
+  background: color-mix(in srgb, var(--juice-danger) 16%, var(--fill-slab));
+  color: var(--juice-danger);
+}
+
+.j-ai-pill-btn:active {
+  transform: scale(0.95);
+}
+
+/* Segmented Context / Progress Stack Bar */
+.j-ai-stack-bar {
+  height: 10px;
+  border-radius: 99px;
+  background: var(--juice-w12);
+  display: flex;
+  overflow: hidden;
+  gap: 2px;
+  padding: 2px;
+}
+
+.j-ai-stack-seg {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 240ms var(--juice-out);
+}
+
+/* Citation & Grounding Pills */
+.j-cite-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 5px;
+  margin: 0 2px;
+  border-radius: 6px;
+  border: 0;
+  background: var(--juice-w12);
+  color: var(--fill-on);
+  font-family: var(--juice-font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  vertical-align: baseline;
+  transition: background-color 140ms ease, color 140ms ease, transform 130ms var(--juice-out);
+}
+
+.j-cite-pill[data-active="true"],
+.j-cite-pill:hover {
+  background: var(--juice-signal);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Arena / Dual Columns */
+.j-ai-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.j-ai-col {
+  border-radius: 13px;
+  background: var(--juice-w6);
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.j-ai-col[data-selected="true"] {
+  background: var(--juice-w12);
+  box-shadow: inset 0 0 0 1.5px var(--fill-on);
+}
+
+/* Vision Overlay Canvas */
+.j-vision-stage {
+  position: relative;
+  height: 118px;
+  border-radius: 13px;
+  background: var(--juice-w6);
+  overflow: hidden;
+  padding: 10px;
+}
+
+.j-vision-box {
+  position: absolute;
+  border: 1.5px dashed var(--juice-faint);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--fill-on);
+  padding: 4px 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms var(--juice-out);
+}
+
+.j-vision-box[data-active="true"],
+.j-vision-box:hover {
+  border-style: solid;
+  border-color: var(--juice-signal);
+  background: color-mix(in srgb, var(--juice-signal) 14%, transparent);
+}
+
+/* Terminal & Code Blocks */
+.j-ai-mono-box {
+  border-radius: 11px;
+  background: var(--juice-w6);
+  padding: 8px 10px;
+  font-family: var(--juice-font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--juice-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-x: auto;
+}
