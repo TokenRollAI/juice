@@ -10,4 +10,5 @@ export * from './components-radix-primitives.tsx';
 export * from './components-base-ui.tsx';
 export * from './components-portal-floating.tsx';
 export * from './components-media-workbench.tsx';
+export * from './components-composable.tsx';
 

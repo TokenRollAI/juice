@@ -1,6 +1,6 @@
 {
   "name": "@tokenroll/juice-vue",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vue 3 tactile UI components, micro-interactions, headless composables, and AI agent blocks for Juice UI.",
   "license": "MIT",
   "type": "module",
@@ -42,7 +42,9 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./tokens.css": "./dist/tokens.css",
+    "./scoped.css": "./dist/scoped.css"
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node ../../scripts/bundle-css.mjs",

@@ -1,11 +1,14 @@
 import {
+  forwardRef,
   useEffect,
   useId,
   useMemo,
   useRef,
   useState,
   type ButtonHTMLAttributes,
+  type ChangeEventHandler,
   type InputHTMLAttributes,
+  type TextareaHTMLAttributes,
   type ReactNode,
   type Ref,
 } from 'react';
@@ -13,36 +16,44 @@ import { useReducedMotion } from 'motion/react';
 import { clsx } from 'clsx';
 import { Calendar, Check, ChevronDown, Loader2, Minus, Plus, Upload, X } from 'lucide-react';
 import { useControllableState, useJuice, useJuiceAgentNode, useRovingFocus, useScrubDrag } from './behaviors.tsx';
+import { playJuiceSound, type JuiceSoundName } from './sound.ts';
 import { Badge, Checkbox, Kbd, RollingNumber, SegmentedControl, Switch } from './components.tsx';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger' | 'signal';
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
+
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  ref?: Ref<HTMLButtonElement>;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  loading?: boolean;
+  pressed?: boolean;
+  sound?: boolean | JuiceSoundName;
+  leftIcon?: ReactNode;
+  rightIcon?: ReactNode;
+};
 
 export function Button({
   variant = 'primary',
   size = 'md',
   loading = false,
+  pressed,
+  sound = false,
   leftIcon,
   rightIcon,
   children,
   className,
   disabled,
-  onClick,
   type = 'button',
+  onClick,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  ref?: Ref<HTMLButtonElement>;
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  loading?: boolean;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
-}) {
+}: ButtonProps) {
   const { animate } = useJuice();
   const reducedMotion = useReducedMotion();
 
   return (
     <button
+      data-pressed={pressed ?? rest['aria-pressed']}
       {...rest}
       type={type}
       className={clsx('j-btn', className)}
@@ -50,7 +61,13 @@ export function Button({
       data-size={size}
       disabled={disabled || loading}
       aria-busy={loading || rest['aria-busy']}
-      onClick={onClick}
+      aria-pressed={pressed ?? rest['aria-pressed']}
+      onClick={(e) => {
+        if (sound && !disabled && !loading) {
+          playJuiceSound(sound === true ? 'tap' : sound);
+        }
+        onClick?.(e);
+      }}
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 'inherit', opacity: loading ? 0 : undefined }}>
         {leftIcon}
@@ -111,6 +128,23 @@ type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'def
   clearable?: boolean;
 };
 
+type FieldDescriptionProps = { id: string; hint?: ReactNode; error?: string };
+
+function describedBy(id: string, hint?: ReactNode, error?: string, externalId?: string) {
+  return clsx(externalId, hint != null && hint !== false && `${id}-hint`, error && `${id}-error`) || undefined;
+}
+
+function FieldDescription({ id, hint, error }: FieldDescriptionProps) {
+  return (
+    <>
+      {hint != null && hint !== false && <div id={`${id}-hint`} className="j-field-hint">{hint}</div>}
+      <div id={`${id}-error`} aria-live="polite" className="j-field-error" style={{ display: error ? undefined : 'contents' }}>
+        {error}
+      </div>
+    </>
+  );
+}
+
 function FieldSurfaceStyles() {
   return (
     <style href="juice-foundation-field-surface" precedence="default">{`
@@ -141,7 +175,6 @@ export function TextField({
   const inputId = id ?? generatedId;
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useControllableState({ value: controlledValue, defaultValue, onChange });
-  const describedBy = clsx(rest['aria-describedby'], hint && `${inputId}-hint`, error && `${inputId}-error`);
   const invalid = error ? true : rest['aria-invalid'];
 
   return (
@@ -162,7 +195,7 @@ export function TextField({
           disabled={disabled}
           readOnly={readOnly}
           value={value}
-          aria-describedby={describedBy || undefined}
+          aria-describedby={describedBy(inputId, hint, error, rest['aria-describedby'])}
           aria-invalid={invalid}
           onChange={(event) => setValue(event.currentTarget.value)}
         />
@@ -176,13 +209,51 @@ export function TextField({
           </IconButton>
         )}
       </div>
-      {hint && <div id={`${inputId}-hint`} className="j-field-hint">{hint}</div>}
-      <div aria-live="polite" className="j-field-error" id={`${inputId}-error`} style={{ display: error ? undefined : 'contents' }}>
-        {error}
-      </div>
+      <FieldDescription id={inputId} hint={hint} error={error} />
     </div>
   );
 }
+
+type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'defaultValue' | 'onChange'> & {
+  label?: string;
+  hint?: ReactNode;
+  error?: string;
+  value?: string;
+  defaultValue?: string;
+  onChange?: (value: string) => void;
+  onNativeChange?: ChangeEventHandler<HTMLTextAreaElement>;
+};
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({
+  id, label, hint, error, className, disabled, onChange, onNativeChange, ...rest
+}, ref) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const invalid = error ? true : rest['aria-invalid'];
+
+  return (
+    <div className="j-field">
+      <FieldSurfaceStyles />
+      {label && <div className="j-field-label-row"><label htmlFor={inputId}>{label}</label></div>}
+      <div className="j-input-box j-textarea-box" data-invalid={invalid && invalid !== 'false' ? true : undefined}>
+        <textarea
+          {...rest}
+          ref={ref}
+          id={inputId}
+          disabled={disabled}
+          className={clsx('j-input-el', className)}
+          aria-invalid={invalid}
+          aria-describedby={describedBy(inputId, hint, error, rest['aria-describedby'])}
+          onChange={(event) => {
+            onChange?.(event.currentTarget.value);
+            onNativeChange?.(event);
+          }}
+        />
+      </div>
+      <FieldDescription id={inputId} hint={hint} error={error} />
+    </div>
+  );
+});
 
 export type SelectOption<T extends string = string> = { value: T; label: string };
 
@@ -195,6 +266,10 @@ type SelectProps<T extends string> = {
   defaultValue?: T;
   onChange?: (value: T) => void;
   placeholder?: string;
+  searchPlaceholder?: string;
+  emptyLabel?: string;
+  hint?: ReactNode;
+  error?: string;
   disabled?: boolean;
   query?: string;
   onQueryChange?: (query: string) => void;
@@ -211,6 +286,10 @@ export function Select<T extends string>({
   defaultValue,
   onChange,
   placeholder = 'Select an option',
+  searchPlaceholder = 'Search options',
+  emptyLabel = 'No matching options',
+  hint,
+  error,
   disabled = false,
   query: controlledQuery,
   onQueryChange,
@@ -275,7 +354,7 @@ export function Select<T extends string>({
       <FieldSurfaceStyles />
       <div className="j-field-label-row"><label htmlFor={inputId}>{label}</label></div>
       {name && <input type="hidden" name={name} value={value ?? ''} disabled={disabled} />}
-      <div className="j-input-box" style={{ opacity: disabled ? 0.55 : undefined }}>
+      <div className="j-input-box" data-invalid={error ? true : undefined} style={{ opacity: disabled ? 0.55 : undefined }}>
         <input
           ref={inputRef}
           id={inputId}
@@ -284,7 +363,9 @@ export function Select<T extends string>({
           autoComplete="off"
           disabled={disabled}
           value={expanded ? query : selected?.label ?? ''}
-          placeholder={expanded ? 'Search options' : placeholder}
+          placeholder={expanded ? searchPlaceholder : placeholder}
+          aria-describedby={describedBy(inputId, hint, error)}
+          aria-invalid={error ? true : undefined}
           aria-autocomplete="list"
           aria-expanded={expanded}
           aria-controls={expanded ? listId : undefined}
@@ -354,9 +435,10 @@ export function Select<T extends string>({
               </div>
             ))}
           </div>
-          {filtered.length === 0 && <div role="status" style={{ padding: 8, fontSize: 12, color: 'var(--juice-soft)' }}>No matching options</div>}
+          {filtered.length === 0 && <div role="status" style={{ padding: 8, fontSize: 12, color: 'var(--juice-soft)' }}>{emptyLabel}</div>}
         </div>
       )}
+      <FieldDescription id={inputId} hint={hint} error={error} />
     </div>
   );
 }

@@ -83,18 +83,22 @@
   background: var(--fill-on);
   color: var(--fill-slab);
 }
+.j-btn[data-variant="signal"] {
+  background: var(--juice-signal);
+  color: var(--juice-on-signal);
+}
 .j-btn[data-variant="secondary"] {
   background: var(--juice-w12);
   color: var(--fill-on);
 }
-.j-btn[data-variant="secondary"]:hover:not(:disabled) {
+.j-btn[data-variant="secondary"]:hover:not(:disabled):where(:not([aria-pressed="true"])) {
   background: var(--juice-w20);
 }
 .j-btn[data-variant="ghost"] {
   background: transparent;
   color: var(--juice-soft);
 }
-.j-btn[data-variant="ghost"]:hover:not(:disabled) {
+.j-btn[data-variant="ghost"]:hover:not(:disabled):where(:not([aria-pressed="true"])) {
   background: var(--juice-w6);
   color: var(--fill-on);
 }
@@ -103,15 +107,21 @@
   color: var(--fill-on);
   box-shadow: inset 0 0 0 1px var(--juice-w20);
 }
-.j-btn[data-variant="outline"]:hover:not(:disabled) {
+.j-btn[data-variant="outline"]:hover:not(:disabled):where(:not([aria-pressed="true"])) {
   background: var(--juice-w6);
 }
 .j-btn[data-variant="danger"] {
   background: color-mix(in srgb, var(--juice-danger) 16%, var(--fill-slab));
   color: var(--juice-danger);
 }
-.j-btn[data-variant="danger"]:hover:not(:disabled) {
+.j-btn[data-variant="danger"]:hover:not(:disabled):where(:not([aria-pressed="true"])) {
   background: color-mix(in srgb, var(--juice-danger) 24%, var(--fill-slab));
+}
+
+.j-btn[aria-pressed="true"] {
+  background: var(--juice-w20);
+  color: var(--fill-on);
+  box-shadow: inset 0 0 0 1px var(--juice-faint);
 }
 
 .j-icon-btn {
@@ -178,6 +188,49 @@
 }
 .j-input-el::placeholder {
   color: var(--juice-faint);
+}
+
+.j-textarea-box {
+  height: auto;
+  padding-block: 8px;
+}
+.j-textarea-box > textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+.j-textarea-box:has(> textarea:disabled) {
+  opacity: 0.55;
+}
+
+/* Passive loading indicators */
+.j-skeleton {
+  height: 1em;
+  border-radius: var(--juice-r-control);
+  background: var(--juice-w12);
+  animation: j-skeleton-pulse 1.6s ease-in-out infinite;
+}
+@keyframes j-skeleton-pulse {
+  50% { opacity: 0.55; }
+}
+.j-spinner {
+  display: inline-block;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  vertical-align: middle;
+  border: 2px solid var(--juice-w12);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: j-spinner-turn 0.85s linear infinite;
+}
+@keyframes j-spinner-turn {
+  to { transform: rotate(1turn); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .j-skeleton, .j-spinner { animation: none; }
+}
+[data-animate="off"] :is(.j-skeleton, .j-spinner),
+:is(.j-skeleton, .j-spinner)[data-animate="off"] {
+  animation: none;
 }
 
 /* ── Radio & Choice Cards (.j-radio-card, .j-radio-dot) ──────────── */

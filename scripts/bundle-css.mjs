@@ -4,31 +4,32 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = resolve(root, 'packages/juice/src');
-
-const parts = [
-  'styles.css',
-  'styles-ai.css',
-  'styles-foundation.css',
-  'styles-studio.css',
-];
-
-const mainCss = readFileSync(resolve(srcDir, 'styles.css'), 'utf8').replace(
-  /@import\s+['"]\.\/styles-(?:ai|foundation|studio)\.css['"];\s*/g,
-  '',
+const parts = [];
+const main = readFileSync(resolve(srcDir, 'styles.css'), 'utf8').replace(
+  /^@import ['"]\.\/(styles-[\w-]+\.css)['"];\s*/gm,
+  (_, name) => {
+    parts.push(`/* ── ${name} ── */\n${readFileSync(resolve(srcDir, name), 'utf8')}`);
+    return '';
+  },
 );
-const subCss = parts
-  .slice(1)
-  .map((name) => `/* ── ${name} ── */\n${readFileSync(resolve(srcDir, name), 'utf8')}`)
-  .join('\n\n');
 
-const bundled = `${mainCss.trim()}\n\n${subCss.trim()}\n`;
+// The source marks the end of the tokens and the start of the scoped base selector.
+const globalBase = main.indexOf('/* @juice-global-base */');
+const scopedBase = main.indexOf('/* @juice-scoped-base */');
+if (globalBase < 0 || scopedBase <= globalBase) throw new Error('Missing Juice CSS entry-point markers');
 
-for (const outPath of [
-  resolve(root, 'packages/juice/dist/styles.css'),
-  resolve(root, 'packages/vue/dist/styles.css'),
-]) {
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, bundled, 'utf8');
+const tokens = main.slice(0, globalBase).trimEnd();
+const components = parts.join('\n\n').trimEnd();
+const bundles = {
+  'styles.css': `${main.trimEnd()}\n\n${components}\n`,
+  'tokens.css': `${tokens}\n`,
+  'scoped.css': `${tokens}\n\n${main.slice(scopedBase).trimEnd()}\n\n${components}\n`,
+};
+
+for (const pkg of ['juice', 'vue']) {
+  const dir = resolve(root, 'packages', pkg, 'dist');
+  mkdirSync(dir, { recursive: true });
+  for (const [name, css] of Object.entries(bundles)) writeFileSync(resolve(dir, name), css);
 }
 
-console.log(`Bundled Juice styles.css (${(bundled.length / 1024).toFixed(1)} KB) -> packages/juice/dist & packages/vue/dist`);
+console.log(`Bundled ${Object.keys(bundles).join(', ')} for Juice React and Vue`);

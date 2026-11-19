@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
 import {
   AlertCircle,
   Check,
@@ -13,6 +13,7 @@ import {
   Trash2,
   UserPlus,
 } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useReducedMotion } from 'motion/react';
 import { useControllableState, useJuice, useJuiceAgentNode, useRovingFocus } from './behaviors.tsx';
 import { Badge, Kbd, RollingNumber, SegmentedControl, Switch } from './components.tsx';
@@ -713,17 +714,67 @@ export function NavPagination({ id = 'nav-pagination' }: { id?: string } = {}) {
 
 type AlertTone = 'ok' | 'warn' | 'danger';
 
-export function Alert({ tone, children }: { tone: AlertTone; children: ReactNode }) {
+export function Alert({
+  tone, children, className, style, role = tone === 'danger' ? 'alert' : 'status', ...rest
+}: HTMLAttributes<HTMLDivElement> & { tone: AlertTone }) {
   const Icon = tone === 'ok' ? Info : AlertCircle;
   return (
-    <div className="j-alert" data-tone={tone} role={tone === 'danger' ? 'alert' : 'status'} style={{
+    <div {...rest} className={clsx('j-alert', className)} data-tone={tone} role={role} style={{
       justifyContent: 'flex-start', lineHeight: 1.45,
       background: tone === 'ok' ? 'transparent' : undefined,
       color: tone === 'ok' ? 'var(--juice-soft)' : undefined,
+      ...style,
     }}>
       <Icon size={15} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
       <div style={{ minWidth: 0, overflowWrap: 'anywhere', color: 'var(--fill-on)' }}>{children}</div>
     </div>
+  );
+}
+
+export function Skeleton({
+  width, height, radius, circle = false, className, style, ...rest
+}: HTMLAttributes<HTMLDivElement> & {
+  width?: CSSProperties['width'];
+  height?: CSSProperties['height'];
+  radius?: CSSProperties['borderRadius'];
+  circle?: boolean;
+}) {
+  const diameter = width ?? height ?? '1em';
+  return (
+    <div
+      aria-hidden="true"
+      {...rest}
+      className={clsx('j-skeleton', className)}
+      style={{
+        width: circle ? diameter : width,
+        height: circle ? diameter : height,
+        borderRadius: circle ? '50%' : radius,
+        ...style,
+      }}
+    />
+  );
+}
+
+const spinnerSizes = { xs: 12, sm: 16, md: 20, lg: 28 };
+
+export function Spinner({
+  size = 'md', label, className, style, ...rest
+}: HTMLAttributes<HTMLSpanElement> & {
+  size?: keyof typeof spinnerSizes | number;
+  label?: string;
+}) {
+  const diameter = typeof size === 'number' ? size : spinnerSizes[size];
+  const name = label ?? rest['aria-label'];
+  const named = Boolean(name || rest['aria-labelledby']);
+  return (
+    <span
+      role={named ? 'status' : undefined}
+      aria-hidden={named ? undefined : true}
+      {...rest}
+      aria-label={name}
+      className={clsx('j-spinner', className)}
+      style={{ width: diameter, height: diameter, ...style }}
+    />
   );
 }
 

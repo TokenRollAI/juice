@@ -1,8 +1,11 @@
 import {
+  forwardRef,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type ButtonHTMLAttributes,
+  type Ref,
   type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
@@ -68,6 +71,9 @@ export type SegmentedOption<T extends string = string> = {
   value: T;
   label: ReactNode;
   icon?: ReactNode;
+  disabled?: boolean;
+  title?: string;
+  'data-testid'?: string;
 };
 
 export function SegmentedControl<T extends string = string>({
@@ -77,55 +83,69 @@ export function SegmentedControl<T extends string = string>({
   defaultValue,
   onChange,
   className,
+  role = 'tablist',
+  'aria-label': ariaLabel,
 }: {
   id?: string;
   options: readonly SegmentedOption<T>[];
-  value?: T;
+  value?: T | null;
   defaultValue?: T;
   onChange?: (value: T) => void;
   className?: string;
+  role?: 'tablist' | 'group';
+  'aria-label'?: string;
 }) {
   const { playSound } = useJuice();
-  const fallback = defaultValue ?? options[0]?.value ?? ('' as T);
-  const [value, setValue] = useControllableState<T>({
+  const enabled = useMemo(() => options.filter((opt) => !opt.disabled).map((opt) => opt.value), [options]);
+  const [value, setValue] = useControllableState<T | null>({
     value: controlledValue,
-    defaultValue: fallback,
-    onChange,
+    defaultValue: defaultValue ?? enabled[0] ?? null,
+    onChange: (next) => { if (next !== null) onChange?.(next); },
   });
-
-  const itemValues = useMemo(() => options.map((o) => o.value), [options]);
+  const buttons = useRef(new Map<T, HTMLButtonElement>());
+  const [focused, setFocused] = useState<T>();
+  const tabStop = value !== null && enabled.includes(value) ? value : enabled[0];
   const select = (next: T) => {
-    if (next !== value) {
+    if (next !== value && enabled.includes(next)) {
       playSound('tap');
       setValue(next);
     }
   };
   const { onKeyDown } = useRovingFocus({
-    items: itemValues,
-    active: value,
-    onSelect: select,
+    items: enabled,
+    active: focused ?? tabStop ?? ('' as T),
+    onSelect: (next) => {
+      buttons.current.get(next)?.focus();
+      select(next);
+    },
     orientation: 'horizontal',
   });
 
-  useJuiceAgentNode(id, 'SegmentedControl', { value }, { select: (v: T) => select(v) });
+  useJuiceAgentNode(id, 'SegmentedControl', { value }, { select });
 
   return (
-    <div
-      id={id}
-      role="tablist"
-      className={clsx('j-seg', className)}
-      onKeyDown={onKeyDown}
-    >
+    <div id={id} role={role} aria-label={ariaLabel} className={clsx('j-seg', className)} onKeyDown={onKeyDown}>
       {options.map((opt) => {
         const active = opt.value === value;
+        const isTab = role === 'tablist';
         return (
           <button
             key={opt.value}
+            ref={(button) => {
+              if (button) buttons.current.set(opt.value, button);
+              else buttons.current.delete(opt.value);
+            }}
             type="button"
-            role="tab"
-            aria-selected={active}
+            role={isTab ? 'tab' : undefined}
+            aria-selected={isTab ? active : undefined}
+            aria-pressed={isTab ? undefined : active}
+            tabIndex={isTab && opt.value !== tabStop ? -1 : undefined}
+            disabled={opt.disabled}
+            title={opt.title}
+            data-testid={opt['data-testid']}
             data-active={active ? 'true' : undefined}
             className="j-seg-btn"
+            onFocus={() => setFocused(opt.value)}
             onClick={() => select(opt.value)}
           >
             {opt.icon}
@@ -137,93 +157,58 @@ export function SegmentedControl<T extends string = string>({
   );
 }
 
-export function Switch({
-  id,
-  checked: controlledChecked,
-  defaultChecked = false,
-  onChange,
-  'aria-label': ariaLabel,
-}: {
-  id?: string;
+type ToggleProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onChange'> & {
   checked?: boolean;
-  defaultChecked?: boolean;
   onChange?: (checked: boolean) => void;
-  'aria-label'?: string;
-}) {
+  label?: ReactNode;
+};
+
+function ToggleButton({
+  kind, buttonRef, id, checked: controlledChecked, defaultChecked = false, onChange,
+  className, disabled, onClick, children, label = children, ...rest
+}: ToggleProps & { kind: 'Switch' | 'Checkbox'; buttonRef: Ref<HTMLButtonElement> }) {
   const { playSound } = useJuice();
-  const [checked, setChecked] = useControllableState({
-    value: controlledChecked,
-    defaultValue: defaultChecked,
-    onChange,
+  const [checked, setChecked] = useControllableState({ value: controlledChecked, defaultValue: defaultChecked, onChange });
+  const toggle = () => {
+    if (disabled) return;
+    playSound(checked ? 'tap' : 'latch');
+    setChecked(!checked);
+  };
+  useJuiceAgentNode(id, kind, { checked }, {
+    toggle,
+    set: (next: boolean) => { if (!disabled) setChecked(Boolean(next)); },
   });
 
-  const toggle = () => {
-    const next = !checked;
-    playSound(next ? 'latch' : 'tap');
-    setChecked(next);
-  };
-
-  useJuiceAgentNode(id, 'Switch', { checked }, { toggle, set: (v: boolean) => setChecked(Boolean(v)) });
-
-  return (
+  const isSwitch = kind === 'Switch';
+  const button = (
     <button
-      id={id}
       type="button"
-      role="switch"
+      role={isSwitch ? 'switch' : 'checkbox'}
+      {...rest}
+      id={id}
+      ref={buttonRef}
+      className={clsx(isSwitch ? 'j-switch' : 'j-checkbox', className)}
+      disabled={disabled}
       aria-checked={checked}
-      aria-label={ariaLabel}
-      data-checked={checked ? 'true' : 'false'}
-      className="j-switch"
-      onClick={toggle}
+      data-checked={checked}
+      onClick={(event) => {
+        onClick?.(event);
+        if (!event.defaultPrevented) toggle();
+      }}
     >
-      <i className="j-switch-thumb" />
+      {isSwitch ? <i className="j-switch-thumb" /> : checked && <Check size={11} strokeWidth={2.75} aria-hidden="true" />}
     </button>
   );
+  return label == null ? button : <label className="j-toggle-label">{button}{label}</label>;
 }
 
-export function Checkbox({
-  id,
-  checked: controlledChecked,
-  defaultChecked = false,
-  onChange,
-  'aria-label': ariaLabel,
-}: {
-  id?: string;
-  checked?: boolean;
-  defaultChecked?: boolean;
-  onChange?: (checked: boolean) => void;
-  'aria-label'?: string;
-}) {
-  const { playSound } = useJuice();
-  const [checked, setChecked] = useControllableState({
-    value: controlledChecked,
-    defaultValue: defaultChecked,
-    onChange,
-  });
+export const Switch = forwardRef<HTMLButtonElement, ToggleProps>(function Switch(props, ref) {
+  return <ToggleButton {...props} kind="Switch" buttonRef={ref} />;
+});
 
-  const toggle = () => {
-    const next = !checked;
-    playSound(next ? 'latch' : 'tap');
-    setChecked(next);
-  };
-
-  useJuiceAgentNode(id, 'Checkbox', { checked }, { toggle, set: (v: boolean) => setChecked(Boolean(v)) });
-
-  return (
-    <button
-      id={id}
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      data-checked={checked ? 'true' : 'false'}
-      className="j-checkbox"
-      onClick={toggle}
-    >
-      {checked && <Check size={11} strokeWidth={2.75} />}
-    </button>
-  );
-}
+export const Checkbox = forwardRef<HTMLButtonElement, ToggleProps>(function Checkbox(props, ref) {
+  return <ToggleButton {...props} kind="Checkbox" buttonRef={ref} />;
+});
 
 // ---------------------------------------------------------------------------
 // 1. RollingNumber (NumberFlow-style Odometer with Deterministic Snapshot)

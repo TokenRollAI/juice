@@ -1,6 +1,6 @@
 {
   "name": "juice-monorepo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Juice — Tactile, behavior-driven React & Vue 3 UI blocks, micro-interactions, and procedural sound for modern products and AI agents.",
   "private": true,
   "type": "module",

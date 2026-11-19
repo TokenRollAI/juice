@@ -29,8 +29,12 @@ pnpm add @tokenroll/juice lucide-react
   import { SlashMentionComposer, ToolApprovalGate, GroundedAnswer } from '@tokenroll/juice/blocks';
   ```
 - **Optional `<JuiceProvider>`**: Wrap only when you want scoped Light/Dark or Slab/Solid theme switching or deterministic static frames (`<JuiceProvider animate={false}>`).
+- **Modular CSS Entrypoints (Tailwind v4 Safe)**:
+  - `@tokenroll/juice/styles.css` — Full bundled stylesheet (tokens + components + base resets). When mixing with Tailwind v4, declare `@layer theme, base, components, utilities;` before `@import "@tokenroll/juice/styles.css" layer(components);`.
+  - `@tokenroll/juice/tokens.css` — Pure CSS custom properties & concentric tonal ramp with **zero** tag resets (ideal for Tailwind v4 / Next.js apps).
+  - `@tokenroll/juice/scoped.css` — Tokens + `.j-*` component rules with **zero** bare `html`/`body`/`button` resets.
 - **Zero-React Core** (`@tokenroll/juice/core`): `playJuiceSound`, `JUICE_SOUND_CATALOG`, `registerJuiceAgentNode`.
-- **Vue 3** (`@tokenroll/juice-vue`): `pnpm add @tokenroll/juice-vue` → `import '@tokenroll/juice-vue/styles.css'`.
+- **Vue 3** (`@tokenroll/juice-vue`): `pnpm add @tokenroll/juice-vue` → `import '@tokenroll/juice-vue/styles.css'` (also exports `/tokens.css` & `/scoped.css`).
 
 ### Track 2 · CLI Source Copy (shadcn-style 100% Local Source Ownership)
 Copy component source + transitive dependencies + `juice.css` straight into the project so you or an AI agent can customize every pixel locally:
@@ -61,12 +65,13 @@ npx skills add TokenRollAI/juice
 
 | Subpath / CLI Module | Key Primitives & Blocks |
 | :--- | :--- |
-| **`/primitives` · `foundation-forms`** | `Button`, `IconButton`, `TextField`, `Select`, `RadioCard`, `NumberField`, `Slider` |
-| **`/primitives` · `foundation-nav`** | `Breadcrumbs`, `Pagination`, `Alert` |
+| **`/primitives` · `foundation-forms`** | `Button`, `IconButton`, `TextField`, `Textarea`, `Select`, `RadioCard`, `NumberField`, `Slider` |
+| **`/primitives` · `foundation-nav`** | `Breadcrumbs`, `Pagination`, `Alert`, `Skeleton`, `Spinner` |
+| **`/primitives` · `composable`** | `Dialog`, `Sheet`, `DropdownMenu` (w/ SubMenu, RadioGroup, CheckboxItem), `Tabs`, `Accordion`, `ToastProvider` / `ToastViewport` / `createToastManager`, `Table`, `Avatar`, `ChartTooltipContent`, `ChartLegendContent`, `OtpInput` |
 | **`/primitives` · `radix-primitives`** | `Separator`, `AspectRatio`, `Label`, `Collapsible`, `ContextMenu`, `Menubar`, `NavigationMenu`, `Toggle`, `Toolbar`, `ToolbarButton`, `ToggleGroup`, `ToggleGroupItem`, `AlertDialog`, `ScrollArea`, `DualRangeSlider`, `RangeSlider` |
-| **`/primitives` · `base-ui`** | `Form`, `Fieldset`, `Field`, `Meter`, `Progress`, `Autocomplete`, `CheckboxGroup` (3-state), `ScrubNumberField`, `PreviewCard` |
-| **`/primitives` · `portal-floating`** | `placeFloating` (collision-aware + fullscreen-safe), `FloatingPopover`, `useTooltip`, `Tooltip`, `BreadcrumbSelect`, `AdaptiveToolbar`, `SwatchGridPicker`, `InspectorSheet` |
-| **`/primitives` · `media-workbench`** | `ProgressRing`, `CopySnippet`, `MediaTransport`, `StepTimeline`, `IdleAutoHideBar`, `CornerSnapOrb`, `TaskProgressCard`, `MaskedSecretInput` |
+| **`/primitives` · `base-ui`** | `Form`, `Fieldset`, `Field`, `Meter`, `Progress` (w/ `compact`), `Autocomplete`, `CheckboxGroup` (3-state), `ScrubNumberField`, `PreviewCard` |
+| **`/primitives` · `portal-floating`** | `placeFloating` (collision-aware + fullscreen-safe), `FloatingPopover`, `CenterPopover`, `useTooltip`, `Tooltip`, `BreadcrumbSelect`, `AdaptiveToolbar`, `SwatchGridPicker`, `InspectorSheet` |
+| **`/primitives` · `media-workbench`** | `ProgressRing`, `CopySnippet`, `MediaTransport`, `StepTimeline`, `useIdleVisibility`, `IdleAutoHideBar`, `CornerSnapOrb`, `TaskProgressCard`, `MaskedSecretField`, `MaskedSecretInput` |
 | **`/blocks` · `ai-chat` & `ai-agents`** | `Composer`, `SlashMentionComposer`, `ModelEffortPicker`, `ThinkingMorph`, `GroundedAnswer`, `MessageBranchThread`, `VisionRegionAsk`, `VoiceOrbSession`, `ArtifactCanvas`, `ToolApprovalGate`, `AgentPlanChecklist`, `TerminalStreamCard`, `SubagentSwarmBoard`, `McpServerRoster`, `ContextBudgetMeter`, `AgentMemoryStore`, `ModelArenaCompare`, `RateLimitBanner` |
 | **`/blocks` · `tactile` & `extended`** | `StateButton`, `ScrubPanel`, `SlideConfirm`, `DynamicIsland`, `MorphCard`, `MetricRibbon`, `RollingNumber`, `CommandPalette`, `ToastStack`, `SplitCompare`, `OtpField`, `PassStrength`, `TimeSlotPicker`, `RadialDial`, `SwipeCard`, `SelectionToolbar`, `DataGrid`, `TreeExplorer`, `ResizableSplit`, `FilterBar`, `DrawerSheet`, `TabsMorph`, `AudioWaveTrim`, `CodeDiffReveal`, `SkeletonMorph`, `TransferList` |
 | **`/core` · `sound` & `bridge`** | `playJuiceSound`, `JUICE_SOUND_CATALOG` (`tap`, `latch`, `pop`, `scrub`, `tick`, `paid`, `landed`, `deny`, `lift`, `drop`, `swipe`, `chime`), `registerJuiceAgentNode`, `ensureJuiceAgentBridge` |

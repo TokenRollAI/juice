@@ -39,10 +39,12 @@ export function App() {
 > Wrap with `<JuiceProvider defaultTheme="dark" defaultFill="solid" animate={false}>` only when you need scoped theme switching or deterministic 0ms storyboard frames.
 
 Subpath exports:
-- `@tokenroll/juice/primitives` — 100% pure production primitives (`Button`, `TextField`, `Select`, `FloatingPopover`, `ScrollArea`, `CheckboxGroup`, `CopySnippet`, hooks & sound synth), zero demo `*Kit` fixtures.
+- `@tokenroll/juice/primitives` — 100% pure production primitives (`Button`, `TextField`, `Textarea`, `Select`, `Dialog`, `Sheet`, `DropdownMenu`, `Tabs`, `Accordion`, `Table`, `Avatar`, `OtpInput`, `ToastProvider`/`createToastManager`, `FloatingPopover`, `CenterPopover`, `Skeleton`, `Spinner`, `CopySnippet`, `MaskedSecretField`, hooks & sound synth), zero demo `*Kit` fixtures.
 - `@tokenroll/juice/blocks` — All 86 interactive & AI agent blocks (`SlashMentionComposer`, `ToolApprovalGate`, `GroundedAnswer`, `MediaTransportDock`, etc.).
 - `@tokenroll/juice/core` — Framework-agnostic Web Audio synth + `window.__juiceAgent` bridge (zero React).
-- `@tokenroll/juice/styles.css` — Single bundled ~56KB concentric `color-mix` stylesheet.
+- `@tokenroll/juice/styles.css` — Full bundled concentric `color-mix` stylesheet.
+- `@tokenroll/juice/tokens.css` — Pure CSS tokens & tonal ramp with zero tag resets (ideal for Tailwind v4 apps).
+- `@tokenroll/juice/scoped.css` — Tokens + `.j-*` component classes with zero bare element resets.
 
 ### 2. CLI Source Copy (shadcn-style Full Local Ownership)
 Copy component source + transitive dependencies + `juice.css` directly into your project:

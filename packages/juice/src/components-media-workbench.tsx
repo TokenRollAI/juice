@@ -1,9 +1,43 @@
-import { useEffect, useId, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import {
-  Check, ChevronLeft, ChevronRight, Copy, KeyRound, Maximize2, MessageSquare,
-  Minus, Pause, Play, Plus, RotateCcw, Send, ShieldCheck, Trash2, Volume2, X,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type PointerEvent,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+} from 'react';
+import { clsx } from 'clsx';
+import {
+  AlertCircle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Maximize2,
+  MessageSquare,
+  Minus,
+  Pause,
+  Play,
+  Plus,
+  RotateCcw,
+  Send,
+  ShieldCheck,
+  Trash2,
+  Volume2,
+  X,
 } from 'lucide-react';
-import { useJuice, useJuiceAgentNode } from './behaviors.tsx';
+import { useControllableState, useJuice, useJuiceAgentNode } from './behaviors.tsx';
 import { Badge, SegmentedControl, Switch } from './components.tsx';
 
 const row = { display: 'flex', alignItems: 'center', gap: 6 } as const;
@@ -19,8 +53,12 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+type DataAttributes = {
+  [key: `data-${string}`]: string | number | boolean | undefined;
+};
+
 function IconButton({
-  label, children, onClick, disabled, primary, pressed,
+  label, children, onClick, disabled, primary, pressed, buttonRef, extraProps,
 }: {
   label: string;
   children: ReactNode;
@@ -28,19 +66,36 @@ function IconButton({
   disabled?: boolean;
   primary?: boolean;
   pressed?: boolean;
+  buttonRef?: Ref<HTMLButtonElement>;
+  extraProps?: HTMLAttributes<HTMLButtonElement> & DataAttributes;
 }) {
+  const {
+    className: extraClassName,
+    style: extraStyle,
+    onClick: extraOnClick,
+    'aria-label': extraAriaLabel,
+    title: extraTitle,
+    ...restExtra
+  } = extraProps ?? {};
+  const resolvedLabel = extraAriaLabel ?? label;
+
   return (
     <button
+      {...restExtra}
+      ref={buttonRef}
       type="button"
-      className="j-btn"
+      className={clsx('j-btn', extraClassName)}
       data-size="xs"
       data-variant={primary ? 'primary' : 'ghost'}
-      aria-label={label}
-      aria-pressed={pressed}
-      title={label}
-      style={{ width: 28, height: 28, padding: 0, flexShrink: 0 }}
+      aria-label={resolvedLabel}
+      aria-pressed={pressed ?? restExtra['aria-pressed']}
+      title={extraTitle ?? (restExtra['aria-describedby'] ? undefined : resolvedLabel)}
+      style={{ width: 28, height: 28, padding: 0, flexShrink: 0, ...extraStyle }}
       disabled={disabled}
-      onClick={onClick}
+      onClick={(event) => {
+        extraOnClick?.(event);
+        if (!event.defaultPrevented) onClick();
+      }}
     >
       {children}
     </button>
@@ -62,23 +117,54 @@ export function ProgressRing({ value, size = 16 }: { value: number; size?: numbe
   );
 }
 
-async function writeClipboard(code: string) {
+async function writeClipboard(text: string): Promise<{ ok: true } | { ok: false; error: unknown }> {
   try {
-    await navigator.clipboard.writeText(code);
-    return true;
-  } catch {
-    return false;
+    if (!navigator?.clipboard?.writeText) {
+      throw new Error('Clipboard API unavailable');
+    }
+    await navigator.clipboard.writeText(text);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error };
   }
 }
 
-export function CopySnippet({ code, label, onCopied, copyButtonRef }: {
-  code: string; label?: string; onCopied?: (code: string) => void; copyButtonRef?: RefObject<HTMLButtonElement | null>;
-}) {
+export type CopySnippetProps = Omit<HTMLAttributes<HTMLDivElement>, 'onCopy'> & DataAttributes & {
+  code?: string;
+  copyText?: string;
+  children?: ReactNode;
+  label?: string;
+  copyLabel?: string;
+  copiedLabel?: string;
+  errorLabel?: string;
+  onCopied?: (code: string) => void;
+  onCopyError?: (err: unknown) => void;
+  copyButtonRef?: Ref<HTMLButtonElement>;
+};
+
+export function CopySnippet({
+  code,
+  copyText,
+  children,
+  label,
+  copyLabel,
+  copiedLabel = 'Copied to clipboard',
+  errorLabel = 'Clipboard unavailable. Use your device’s Copy command.',
+  onCopied,
+  onCopyError,
+  copyButtonRef,
+  className,
+  style,
+  ...rest
+}: CopySnippetProps) {
   const { playSound } = useJuice();
   const snippet = useRef<HTMLElement>(null);
-  const [feedback, setFeedback] = useState<{ code: string; copied: boolean }>();
+  const [feedback, setFeedback] = useState<{ target: string; copied: boolean }>();
   const request = useRef(0);
-  const status = feedback?.code === code ? feedback : undefined;
+
+  const explicitTarget = copyText ?? code ?? (typeof children === 'string' ? children : undefined);
+  const activeKey = explicitTarget ?? '__children__';
+  const status = feedback?.target === activeKey ? feedback : undefined;
 
   useEffect(() => {
     if (!feedback?.copied) return;
@@ -87,36 +173,100 @@ export function CopySnippet({ code, label, onCopied, copyButtonRef }: {
   }, [feedback]);
 
   const copy = async () => {
+    const textToCopy = explicitTarget ?? snippet.current?.textContent ?? '';
+    const key = explicitTarget ?? '__children__';
     const attempt = ++request.current;
-    const copied = await writeClipboard(code);
+    const result = await writeClipboard(textToCopy);
     if (attempt !== request.current) return;
-    setFeedback({ code, copied });
-    if (copied) {
+    setFeedback({ target: key, copied: result.ok });
+    if (result.ok) {
       playSound('tap');
-      onCopied?.(code);
-    } else if (snippet.current) {
-      const selected = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(snippet.current);
-      selected?.removeAllRanges();
-      selected?.addRange(range);
+      onCopied?.(textToCopy);
+    } else {
+      onCopyError?.(result.error);
+      if (snippet.current) {
+        try {
+          const selected = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(snippet.current);
+          selected?.removeAllRanges();
+          selected?.addRange(range);
+        } catch {
+          // Selection fallback is best-effort across environments.
+        }
+      }
     }
   };
 
+  const resolvedCopyLabel = copyLabel ?? (label ? `Copy ${label}` : 'Copy snippet');
+  const displayContent = children !== undefined ? children : code;
+  const copyButton = (
+    <button
+      ref={copyButtonRef}
+      type="button"
+      className="j-btn"
+      data-size="xs"
+      data-variant="ghost"
+      aria-label={resolvedCopyLabel}
+      title={resolvedCopyLabel}
+      onClick={copy}
+      style={{ width: 28, padding: 0, flexShrink: 0 }}
+    >
+      {status?.copied ? (
+        <Check size={14} aria-hidden="true" />
+      ) : status?.copied === false ? (
+        <AlertCircle size={14} aria-hidden="true" style={{ color: 'var(--juice-danger)' }} />
+      ) : (
+        <Copy size={14} aria-hidden="true" />
+      )}
+    </button>
+  );
+
   return (
-    <div className="j-copy-snippet" role="group" aria-label={label} style={{ position: 'relative', borderRadius: 14,
-      padding: '6px 10px 10px', display: 'grid', justifyContent: 'stretch', gap: 2 }}>
-      <div style={between}>
-        <strong style={{ ...muted, fontFamily: 'var(--juice-font-ui)', textTransform: 'capitalize' }}>{label ?? 'Snippet'}</strong>
-        <button ref={copyButtonRef} type="button" className="j-btn" data-size="xs" data-variant="ghost"
-          aria-label={`Copy ${label ?? 'snippet'}`} title={`Copy ${label ?? 'snippet'}`} onClick={copy} style={{ width: 28, padding: 0 }}>
-          {status?.copied ? <Check size={14} /> : <Copy size={14} />}
-        </button>
-      </div>
-      <code ref={snippet} style={{ userSelect: 'text', WebkitUserSelect: 'text', wordBreak: 'normal', overflowWrap: 'anywhere', lineHeight: 1.6 }}>{code}</code>
-      <span role="status" style={status?.copied === false ? { ...muted, fontFamily: 'var(--juice-font-ui)' }
-        : { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>
-        {status && (status.copied ? 'Copied to clipboard' : 'Clipboard unavailable. Use your device’s Copy command.')}
+    <div
+      {...rest}
+      className={clsx('j-copy-snippet', className)}
+      role={rest.role ?? 'group'}
+      aria-label={rest['aria-label'] ?? label}
+      data-status={status ? (status.copied ? 'copied' : 'error') : undefined}
+      style={{
+        position: 'relative',
+        borderRadius: 14,
+        padding: label !== undefined ? '6px 10px 10px' : '7px 8px 7px 11px',
+        display: 'grid',
+        justifyContent: 'stretch',
+        gap: 2,
+        ...style,
+      }}
+    >
+      {label !== undefined ? (
+        <>
+          <div style={between}>
+            <strong style={{ ...muted, fontFamily: 'var(--juice-font-ui)', textTransform: 'capitalize' }}>{label}</strong>
+            {copyButton}
+          </div>
+          <code ref={snippet} style={{ userSelect: 'text', WebkitUserSelect: 'text', wordBreak: 'normal', overflowWrap: 'anywhere', lineHeight: 1.6 }}>
+            {displayContent}
+          </code>
+        </>
+      ) : (
+        <div style={between}>
+          <code ref={snippet} style={{ userSelect: 'text', WebkitUserSelect: 'text', wordBreak: 'normal', overflowWrap: 'anywhere', lineHeight: 1.6, minWidth: 0 }}>
+            {displayContent}
+          </code>
+          {copyButton}
+        </div>
+      )}
+      <span
+        role="status"
+        aria-live="polite"
+        style={
+          status?.copied === false
+            ? { ...muted, color: 'var(--juice-danger)', fontFamily: 'var(--juice-font-ui)', paddingTop: 2 }
+            : { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }
+        }
+      >
+        {status && (status.copied ? copiedLabel : errorLabel)}
       </span>
     </div>
   );
@@ -125,8 +275,41 @@ export function CopySnippet({ code, label, onCopied, copyButtonRef }: {
 const speedOptions = ['1x', '1.5x', '2x'].map((speed) => ({ value: speed, label: speed }));
 const demoSteps = ['Init', 'Auth', 'Query', 'Stream', 'Done'];
 
+export type MediaTransportButtonKey = 'restart' | 'previous' | 'play' | 'next';
+
+export type MediaTransportLabels = {
+  controls: string;
+  restart: string;
+  previous: string;
+  play: string;
+  pause: string;
+  next: string;
+};
+
+const defaultMediaTransportLabels: MediaTransportLabels = {
+  controls: 'Media controls',
+  restart: 'Restart',
+  previous: 'Previous step',
+  play: 'Play',
+  pause: 'Pause',
+  next: 'Next step',
+};
+
 export function MediaTransport({
-  playing, onTogglePlay, onRestart, onPrevious, onNext, canGoBack = true, canGoNext = true, children,
+  playing,
+  onTogglePlay,
+  onRestart,
+  onPrevious,
+  onNext,
+  canGoBack = true,
+  canGoNext = true,
+  labels,
+  primaryLabel,
+  primaryButtonRef,
+  getButtonProps,
+  className,
+  style,
+  children,
 }: {
   playing: boolean;
   onTogglePlay: () => void;
@@ -135,31 +318,136 @@ export function MediaTransport({
   onNext: () => void;
   canGoBack?: boolean;
   canGoNext?: boolean;
+  labels?: Partial<MediaTransportLabels>;
+  primaryLabel?: string;
+  primaryButtonRef?: Ref<HTMLButtonElement>;
+  getButtonProps?: (key: MediaTransportButtonKey) => HTMLAttributes<HTMLButtonElement> & DataAttributes;
+  className?: string;
+  style?: CSSProperties;
   children?: ReactNode;
 }) {
+  const copy = { ...defaultMediaTransportLabels, ...labels };
+  const playProps = getButtonProps?.('play');
+  const {
+    className: playClassName,
+    style: playStyle,
+    onClick: playOnClick,
+    'aria-label': playAriaLabel,
+    title: playTitle,
+    ...restPlayProps
+  } = playProps ?? {};
+  const resolvedPlayLabel = playAriaLabel ?? primaryLabel ?? (playing ? copy.pause : copy.play);
+
   return (
-    <div className="j-transport-bar" role="group" aria-label="Media controls" style={{ flexWrap: 'wrap' }}>
+    <div
+      className={clsx('j-transport-bar', className)}
+      role="group"
+      aria-label={copy.controls}
+      style={{ flexWrap: 'wrap', ...style }}
+    >
       <div style={{ ...row, gap: 2 }}>
-        <IconButton label="Restart" onClick={onRestart}><RotateCcw size={13} /></IconButton>
-        <IconButton label="Previous step" disabled={!canGoBack} onClick={onPrevious}><ChevronLeft size={15} /></IconButton>
-        <IconButton label={playing ? 'Pause' : 'Play'} onClick={onTogglePlay} primary>
-          {playing ? <Pause size={13} /> : <Play size={13} />}
+        <IconButton label={copy.restart} onClick={onRestart} extraProps={getButtonProps?.('restart')}>
+          <RotateCcw size={13} aria-hidden="true" />
         </IconButton>
-        <IconButton label="Next step" disabled={!canGoNext} onClick={onNext}><ChevronRight size={15} /></IconButton>
+        <IconButton label={copy.previous} disabled={!canGoBack} onClick={onPrevious} extraProps={getButtonProps?.('previous')}>
+          <ChevronLeft size={15} aria-hidden="true" />
+        </IconButton>
+        {primaryLabel !== undefined ? (
+          <button
+            {...restPlayProps}
+            ref={primaryButtonRef}
+            type="button"
+            className={clsx('j-btn', playClassName)}
+            data-size="xs"
+            data-variant="primary"
+            aria-label={resolvedPlayLabel}
+            title={playTitle ?? (restPlayProps['aria-describedby'] ? undefined : resolvedPlayLabel)}
+            style={{ height: 28, paddingInline: 10, gap: 5, flexShrink: 0, ...playStyle }}
+            onClick={(event) => {
+              playOnClick?.(event);
+              if (!event.defaultPrevented) onTogglePlay();
+            }}
+          >
+            {playing ? <Pause size={13} aria-hidden="true" /> : <Play size={13} aria-hidden="true" />}
+            <span>{primaryLabel}</span>
+          </button>
+        ) : (
+          <IconButton
+            label={resolvedPlayLabel}
+            onClick={onTogglePlay}
+            primary
+            buttonRef={primaryButtonRef}
+            extraProps={playProps}
+          >
+            {playing ? <Pause size={13} aria-hidden="true" /> : <Play size={13} aria-hidden="true" />}
+          </IconButton>
+        )}
+        <IconButton label={copy.next} disabled={!canGoNext} onClick={onNext} extraProps={getButtonProps?.('next')}>
+          <ChevronRight size={15} aria-hidden="true" />
+        </IconButton>
       </div>
       {children}
     </div>
   );
 }
 
+export type TimelineStepDwell = {
+  durationMs: number;
+  elapsedMs: number;
+  paused?: boolean;
+};
+
+export type TimelineStepItem = {
+  id: string | number;
+  numberLabel?: string;
+  label: ReactNode;
+  state?: 'done' | 'active' | 'todo' | 'upcoming';
+  dwell?: TimelineStepDwell;
+  badge?: ReactNode;
+  'data-testid'?: string;
+};
+
+export type StepTimelineLabels = {
+  timeline: string;
+  completed: string;
+};
+
+const defaultStepTimelineLabels: StepTimelineLabels = {
+  timeline: 'Step timeline',
+  completed: 'Completed',
+};
+
+function isTimelineStepItem(step: ReactNode | TimelineStepItem): step is TimelineStepItem {
+  return (
+    typeof step === 'object' &&
+    step !== null &&
+    !isValidElement(step) &&
+    !Array.isArray(step) &&
+    'id' in step &&
+    'label' in step
+  );
+}
+
 export function StepTimeline({
-  steps, activeStep, onSelect, zoom = 100,
+  steps,
+  activeStep,
+  onSelect,
+  zoom = 100,
+  compactInactive = false,
+  labels,
+  className,
+  style,
 }: {
-  steps: readonly ReactNode[];
+  steps: readonly (ReactNode | TimelineStepItem)[];
   activeStep: number;
   onSelect: (index: number) => void;
   zoom?: number;
+  compactInactive?: boolean;
+  labels?: Partial<StepTimelineLabels>;
+  className?: string;
+  style?: CSSProperties;
 }) {
+  const copy = { ...defaultStepTimelineLabels, ...labels };
   const track = useRef<HTMLDivElement>(null);
   const active = useRef<HTMLButtonElement>(null);
 
@@ -171,34 +459,122 @@ export function StepTimeline({
     const item = chip.getBoundingClientRect();
     if (item.left < bounds.left) container.scrollLeft += item.left - bounds.left;
     if (item.right > bounds.right) container.scrollLeft += item.right - bounds.right;
-  }, [activeStep, steps, zoom]);
+  }, [activeStep, compactInactive, steps, zoom]);
 
   return (
-    <div className="j-timeline-track" ref={track} role="group" aria-label="Step timeline" style={{ gap: 3, padding: '3px 2px' }}>
-      {steps.map((label, index) => (
-        <button
-          key={index}
-          type="button"
-          className="j-timeline-chip"
-          data-state={index < activeStep ? 'done' : index === activeStep ? 'active' : 'upcoming'}
-          aria-current={index === activeStep ? 'step' : undefined}
-          ref={index === activeStep ? active : undefined}
-          style={{
-            flex: `0 0 calc((100% - ${(steps.length - 1) * 3}px) * ${zoom / (100 * steps.length)})`,
-            minWidth: 'max-content', height: 48, boxSizing: 'border-box', padding: '6px',
-            flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2,
-            background: index > activeStep ? 'var(--fill-slab)' : undefined,
-            color: index > activeStep ? 'var(--juice-soft)' : undefined,
-          }}
-          onClick={() => onSelect(index)}
-        >
-          <span style={{ ...row, ...mono, width: '100%', justifyContent: 'space-between' }}>
-            {String(index + 1).padStart(2, '0')}
-            {index < activeStep && <Check size={10} aria-label="Completed" />}
-          </span>
-          {label}
-        </button>
-      ))}
+    <div
+      className={clsx('j-timeline-track', className)}
+      ref={track}
+      role="group"
+      aria-label={copy.timeline}
+      style={{ gap: 3, padding: '3px 2px', ...style }}
+    >
+      {steps.map((rawStep, index) => {
+        const rich = isTimelineStepItem(rawStep) ? rawStep : null;
+        const stepKey = rich ? rich.id : index;
+        const numberText = rich?.numberLabel ?? String(index + 1).padStart(2, '0');
+        const stepLabel: ReactNode = isTimelineStepItem(rawStep) ? rawStep.label : rawStep;
+        const stateValue = rich?.state ?? (index < activeStep ? 'done' : index === activeStep ? 'active' : 'upcoming');
+        const isActive = stateValue === 'active';
+        const isDone = stateValue === 'done';
+        const isUpcoming = !isActive && !isDone;
+        const dwellRatio =
+          rich?.dwell && rich.dwell.durationMs > 0
+            ? clamp(rich.dwell.elapsedMs / rich.dwell.durationMs, 0, 1)
+            : null;
+        const isCompactChip = compactInactive && !isActive;
+        const plainStepText =
+          typeof stepLabel === 'string' || typeof stepLabel === 'number' ? String(stepLabel) : undefined;
+
+        if (compactInactive) {
+          return (
+            <button
+              key={stepKey}
+              type="button"
+              className="j-timeline-chip"
+              data-testid={rich?.['data-testid']}
+              data-state={stateValue}
+              data-compact={isCompactChip ? 'true' : 'false'}
+              aria-current={isActive ? 'step' : undefined}
+              aria-label={
+                isCompactChip && plainStepText
+                  ? `${numberText ? `${numberText} · ` : ''}${plainStepText}${isDone ? ` (${copy.completed})` : ''}`
+                  : undefined
+              }
+              title={isCompactChip ? plainStepText : undefined}
+              ref={isActive ? active : undefined}
+              style={{
+                flex: '0 0 auto',
+                height: 28,
+                padding: isActive ? '0 10px' : '0 8px',
+                boxSizing: 'border-box',
+                gap: 5,
+                background: isUpcoming ? 'var(--fill-slab)' : undefined,
+                color: isUpcoming ? 'var(--juice-soft)' : undefined,
+              }}
+              onClick={() => onSelect(index)}
+            >
+              {dwellRatio !== null && (
+                <span
+                  aria-hidden="true"
+                  className="j-timeline-dwell"
+                  data-paused={rich?.dwell?.paused ? 'true' : undefined}
+                  style={{ width: `${dwellRatio * 100}%` }}
+                />
+              )}
+              <span style={{ ...row, gap: 5, position: 'relative', zIndex: 1 }}>
+                {numberText !== '' && <span style={mono}>{numberText}</span>}
+                {isDone && <Check size={10} aria-label={copy.completed} />}
+                {isActive && <span>{stepLabel}</span>}
+                {rich?.badge}
+              </span>
+            </button>
+          );
+        }
+
+        return (
+          <button
+            key={stepKey}
+            type="button"
+            className="j-timeline-chip"
+            data-testid={rich?.['data-testid']}
+            data-state={stateValue}
+            aria-current={isActive ? 'step' : undefined}
+            ref={isActive ? active : undefined}
+            style={{
+              flex: `0 0 calc((100% - ${(steps.length - 1) * 3}px) * ${zoom / (100 * Math.max(1, steps.length))})`,
+              minWidth: 'max-content',
+              height: 48,
+              boxSizing: 'border-box',
+              padding: '6px',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 2,
+              background: isUpcoming ? 'var(--fill-slab)' : undefined,
+              color: isUpcoming ? 'var(--juice-soft)' : undefined,
+            }}
+            onClick={() => onSelect(index)}
+          >
+            {dwellRatio !== null && (
+              <span
+                aria-hidden="true"
+                className="j-timeline-dwell"
+                data-paused={rich?.dwell?.paused ? 'true' : undefined}
+                style={{ width: `${dwellRatio * 100}%` }}
+              />
+            )}
+            <span style={{ ...row, ...mono, width: '100%', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+              <span style={{ ...row, gap: 4 }}>
+                {numberText}
+                {rich?.badge}
+              </span>
+              {isDone && <Check size={10} aria-label={copy.completed} />}
+            </span>
+            <span style={{ position: 'relative', zIndex: 1 }}>{stepLabel}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -272,59 +648,144 @@ export function MediaTransportDock({ id = 'media-transport-dock' }: { id?: strin
   );
 }
 
+export function useIdleVisibility(
+  enabled: boolean,
+  delayMs = 1800,
+  activityRef?: RefObject<HTMLElement | null>,
+): { visible: boolean; poke: () => void } {
+  const [faded, setFaded] = useState(false);
+  const timerRef = useRef<number | undefined>(undefined);
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+  const delayRef = useRef(delayMs);
+  delayRef.current = delayMs;
+
+  const scheduleFade = useCallback(() => {
+    window.clearTimeout(timerRef.current);
+    timerRef.current = undefined;
+    if (!enabledRef.current) return;
+    const ms = Number.isFinite(delayRef.current) ? Math.max(0, delayRef.current) : 1800;
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = undefined;
+      setFaded(true);
+    }, ms);
+  }, []);
+
+  const poke = useCallback(() => {
+    setFaded(false);
+    scheduleFade();
+  }, [scheduleFade]);
+
+  useEffect(() => {
+    window.clearTimeout(timerRef.current);
+    timerRef.current = undefined;
+    setFaded(false);
+    if (!enabled) return;
+
+    const target: EventTarget | null = activityRef
+      ? activityRef.current
+      : typeof window !== 'undefined'
+        ? window
+        : null;
+    if (!target) return;
+
+    const onActivity = () => {
+      setFaded(false);
+      scheduleFade();
+    };
+
+    scheduleFade();
+    const events = activityRef
+      ? (['pointerenter', 'pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const)
+      : (['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const);
+    for (const eventName of events) {
+      target.addEventListener(eventName, onActivity, { passive: true });
+    }
+    return () => {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = undefined;
+      for (const eventName of events) {
+        target.removeEventListener(eventName, onActivity);
+      }
+    };
+  }, [activityRef, delayMs, enabled, scheduleFade]);
+
+  return { visible: !enabled || !faded, poke };
+}
+
 export function IdleAutoHideBar({
-  idle, children, delay = 1000, activityRef,
+  idle,
+  children,
+  delay = 1000,
+  activityRef,
+  className,
+  style,
+  inactiveOpacity = 0.18,
+  onVisibilityChange,
+  pointerEventsWhenHidden,
 }: {
   idle: boolean;
   children: ReactNode;
   delay?: number;
   activityRef?: RefObject<HTMLElement | null>;
+  className?: string;
+  style?: CSSProperties;
+  inactiveOpacity?: number;
+  onVisibilityChange?: (visible: boolean) => void;
+  pointerEventsWhenHidden?: boolean;
 }) {
-  const [faded, setFaded] = useState(false);
+  const { animate } = useJuice();
   const bar = useRef<HTMLDivElement>(null);
+  const [focusedWithin, setFocusedWithin] = useState(false);
+  const { visible, poke } = useIdleVisibility(idle && !focusedWithin, delay, activityRef ?? bar);
+  const onVisibilityChangeRef = useRef(onVisibilityChange);
+  onVisibilityChangeRef.current = onVisibilityChange;
+  const previousVisible = useRef<boolean | undefined>(undefined);
 
   useEffect(() => {
-    const element = bar.current;
-    const activity = activityRef?.current ?? element;
-    setFaded(false);
-    if (!idle || !element || !activity) return;
-    let timer: number | undefined;
-    const scheduleFade = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => setFaded(true), delay);
-    };
-    const wake = () => {
-      setFaded(false);
-      if (element.contains(document.activeElement)) window.clearTimeout(timer);
-      else scheduleFade();
-    };
-    const onFocusOut = (event: FocusEvent) => {
-      if (!(event.relatedTarget instanceof Node) || !element.contains(event.relatedTarget)) scheduleFade();
-    };
-    wake();
-    activity.addEventListener('pointerenter', wake);
-    activity.addEventListener('pointermove', wake);
-    element.addEventListener('focusin', wake);
-    element.addEventListener('focusout', onFocusOut);
-    return () => {
-      window.clearTimeout(timer);
-      activity.removeEventListener('pointerenter', wake);
-      activity.removeEventListener('pointermove', wake);
-      element.removeEventListener('focusin', wake);
-      element.removeEventListener('focusout', onFocusOut);
-    };
-  }, [activityRef, delay, idle]);
+    if (previousVisible.current !== visible) {
+      previousVisible.current = visible;
+      onVisibilityChangeRef.current?.(visible);
+    }
+  }, [visible]);
+
+  const resolvedInactiveOpacity = Number.isFinite(inactiveOpacity) ? clamp(inactiveOpacity, 0, 1) : 0.18;
+  const disablePointerEvents =
+    !visible &&
+    (pointerEventsWhenHidden !== undefined
+      ? !pointerEventsWhenHidden
+      : resolvedInactiveOpacity === 0 && Boolean(activityRef));
 
   return (
     <div
       ref={bar}
-      className="j-transport-bar"
-      data-idle={idle && faded}
+      className={clsx('j-transport-bar', className)}
+      data-idle={!visible}
+      onPointerEnter={() => {
+        if (idle) poke();
+      }}
+      onPointerMove={() => {
+        if (idle) poke();
+      }}
+      onFocusCapture={() => setFocusedWithin(true)}
+      onBlurCapture={(event) => {
+        if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) {
+          setFocusedWithin(false);
+        }
+      }}
       style={{
-        position: 'absolute', bottom: 10, left: '50%', translate: '-50% 0', borderRadius: 999, whiteSpace: 'nowrap',
-        background: 'var(--fill-slab)', boxShadow: '0 0 0 1px var(--juice-edge)',
-        opacity: idle && faded ? 0.18 : 1,
-        transition: idle && faded ? 'opacity 180ms ease' : undefined,
+        position: 'absolute',
+        bottom: 10,
+        left: '50%',
+        translate: '-50% 0',
+        borderRadius: 999,
+        whiteSpace: 'nowrap',
+        background: 'var(--fill-slab)',
+        boxShadow: '0 0 0 1px var(--juice-edge)',
+        opacity: visible ? 1 : resolvedInactiveOpacity,
+        pointerEvents: disablePointerEvents ? 'none' : undefined,
+        transition: animate ? 'opacity 180ms ease' : undefined,
+        ...style,
       }}
     >
       {children}
@@ -396,8 +857,9 @@ export function IdleFullscreenPill({ id = 'idle-fullscreen-pill' }: { id?: strin
 
 const corners = ['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const;
 export type SnapCorner = (typeof corners)[number];
-const orbWidth = 98;
-const orbHeight = 34;
+export type OrbPosition = { x: number; y: number };
+const defaultOrbWidth = 98;
+const defaultOrbHeight = 34;
 const cornerInset = 10;
 
 type OrbDrag = {
@@ -409,74 +871,220 @@ type OrbDrag = {
   moved: boolean;
 };
 
-export function CornerSnapOrb({
-  corner, onSnap, onActivate, expanded, controls, children, buttonRef,
-}: {
-  corner: SnapCorner;
-  onSnap: (corner: SnapCorner) => void;
+export type CornerSnapOrbProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'title'> & DataAttributes & {
+  mode?: 'corners' | 'free';
+  corner?: SnapCorner;
+  onSnap?: (corner: SnapCorner) => void;
+  position?: OrbPosition;
+  defaultPosition?: OrbPosition;
+  onPositionChange?: (pos: OrbPosition) => void;
   onActivate: () => void;
   expanded?: boolean;
   controls?: string;
+  orbWidth?: number;
+  orbHeight?: number;
+  inset?: number;
+  title?: string;
+  'aria-label'?: string;
   children: ReactNode;
-  buttonRef?: RefObject<HTMLButtonElement | null>;
-}) {
+  buttonRef?: Ref<HTMLButtonElement>;
+  ref?: Ref<HTMLButtonElement>;
+};
+
+function clampNormalizedPosition(pos: OrbPosition): OrbPosition {
+  return {
+    x: Number.isFinite(pos.x) ? clamp(pos.x, 0, 1) : 1,
+    y: Number.isFinite(pos.y) ? clamp(pos.y, 0, 1) : 1,
+  };
+}
+
+function getStageMetrics(button: HTMLButtonElement): { stage: HTMLElement | null; width: number; height: number } {
+  const stage =
+    button.offsetParent instanceof HTMLElement
+      ? button.offsetParent
+      : button.parentElement;
+  const rect = stage?.getBoundingClientRect();
+  const width = stage && stage.clientWidth > 0 ? stage.clientWidth : rect && rect.width > 0 ? rect.width : 320;
+  const height = stage && stage.clientHeight > 0 ? stage.clientHeight : rect && rect.height > 0 ? rect.height : 180;
+  return { stage, width, height };
+}
+
+export function CornerSnapOrb({
+  mode = 'corners',
+  corner = 'bottom-right',
+  onSnap,
+  position: controlledPosition,
+  defaultPosition = { x: 1, y: 1 },
+  onPositionChange,
+  onActivate,
+  expanded,
+  controls,
+  orbWidth: orbWidthProp = defaultOrbWidth,
+  orbHeight: orbHeightProp = defaultOrbHeight,
+  inset: insetProp,
+  title,
+  'aria-label': ariaLabel,
+  children,
+  buttonRef,
+  ref,
+  className,
+  style,
+  onClick,
+  onKeyDown,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onLostPointerCapture,
+  ...rest
+}: CornerSnapOrbProps) {
+  const resolvedOrbWidth = Number.isFinite(orbWidthProp) ? Math.max(24, orbWidthProp) : defaultOrbWidth;
+  const resolvedOrbHeight = Number.isFinite(orbHeightProp) ? Math.max(24, orbHeightProp) : defaultOrbHeight;
+  const resolvedCornerInset = insetProp !== undefined && Number.isFinite(insetProp) ? Math.max(0, insetProp) : cornerInset;
+  const resolvedFreeInset = insetProp !== undefined && Number.isFinite(insetProp) ? Math.max(0, insetProp) : 0;
+
+  const [freePosition, setFreePosition] = useControllableState<OrbPosition>({
+    value: controlledPosition,
+    defaultValue: defaultPosition,
+    onChange: onPositionChange,
+  });
+  const clampedFree = clampNormalizedPosition(freePosition);
+
   const drag = useRef<OrbDrag | null>(null);
   const skipClick = useRef(false);
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const [dragPixels, setDragPixels] = useState<{ left: number; top: number } | null>(null);
   const vertical = corner.startsWith('top') ? 'top' : 'bottom';
   const horizontal = corner.endsWith('left') ? 'left' : 'right';
 
   const startDrag = (event: PointerEvent<HTMLButtonElement>) => {
-    if (!event.isPrimary || event.button !== 0) return;
+    onPointerDown?.(event);
+    if (event.defaultPrevented || !event.isPrimary || event.button !== 0) return;
     skipClick.current = false;
     const orb = event.currentTarget;
+    const { width: stageW, height: stageH } = getStageMetrics(orb);
+    const spanX = Math.max(0, stageW - resolvedOrbWidth - resolvedFreeInset * 2);
+    const spanY = Math.max(0, stageH - resolvedOrbHeight - resolvedFreeInset * 2);
+    const fallbackLeft =
+      mode === 'free'
+        ? resolvedFreeInset + clampedFree.x * spanX
+        : horizontal === 'left'
+          ? resolvedCornerInset
+          : Math.max(0, stageW - resolvedOrbWidth - resolvedCornerInset);
+    const fallbackTop =
+      mode === 'free'
+        ? resolvedFreeInset + clampedFree.y * spanY
+        : vertical === 'top'
+          ? resolvedCornerInset
+          : Math.max(0, stageH - resolvedOrbHeight - resolvedCornerInset);
+
     drag.current = {
-      pointer: event.pointerId, x: event.clientX, y: event.clientY,
-      left: orb.offsetLeft, top: orb.offsetTop, moved: false,
+      pointer: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      left: orb.offsetLeft || fallbackLeft,
+      top: orb.offsetTop || fallbackTop,
+      moved: false,
     };
-    orb.setPointerCapture(event.pointerId);
+    orb.setPointerCapture?.(event.pointerId);
   };
-  const dragPosition = (event: PointerEvent<HTMLButtonElement>, start: OrbDrag, stage: HTMLElement) => ({
-    left: clamp(start.left + event.clientX - start.x, 0, Math.max(0, stage.clientWidth - orbWidth)),
-    top: clamp(start.top + event.clientY - start.y, 0, Math.max(0, stage.clientHeight - orbHeight)),
-  });
+
+  const computeClampedDrag = (event: PointerEvent<HTMLButtonElement>, start: OrbDrag, stageW: number, stageH: number) => {
+    const pad = mode === 'free' ? resolvedFreeInset : 0;
+    const maxLeft = Math.max(pad, stageW - resolvedOrbWidth - pad);
+    const maxTop = Math.max(pad, stageH - resolvedOrbHeight - pad);
+    return {
+      left: clamp(start.left + event.clientX - start.x, pad, maxLeft),
+      top: clamp(start.top + event.clientY - start.y, pad, maxTop),
+      pad,
+      spanX: Math.max(0, maxLeft - pad),
+      spanY: Math.max(0, maxTop - pad),
+    };
+  };
+
   const moveDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    onPointerMove?.(event);
     const start = drag.current;
-    const stage = event.currentTarget.offsetParent;
-    if (start?.pointer !== event.pointerId || !(stage instanceof HTMLElement)) return;
+    if (start?.pointer !== event.pointerId) return;
     if (!start.moved && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4) return;
     start.moved = true;
-    setPosition(dragPosition(event, start, stage));
+    const { width: stageW, height: stageH } = getStageMetrics(event.currentTarget);
+    const { left, top, pad, spanX, spanY } = computeClampedDrag(event, start, stageW, stageH);
+    setDragPixels({ left, top });
+    if (mode === 'free') {
+      setFreePosition({
+        x: spanX > 0 ? clamp((left - pad) / spanX, 0, 1) : 0,
+        y: spanY > 0 ? clamp((top - pad) / spanY, 0, 1) : 0,
+      });
+    }
   };
+
   const finishDrag = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.type === 'pointerup') onPointerUp?.(event);
+    else if (event.type === 'pointercancel') onPointerCancel?.(event);
+    else onLostPointerCapture?.(event);
+
     const start = drag.current;
     if (start?.pointer !== event.pointerId) return;
     drag.current = null;
-    setPosition(null);
+    setDragPixels(null);
     const moved = start.moved || Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 4;
     skipClick.current = moved || event.type !== 'pointerup';
-    const stage = event.currentTarget.offsetParent;
-    if (!moved || event.type !== 'pointerup' || !(stage instanceof HTMLElement)) return;
-    const { left, top } = dragPosition(event, start, stage);
-    const nextVertical = top + orbHeight / 2 < stage.clientHeight / 2 ? 'top' : 'bottom';
-    const nextHorizontal = left + orbWidth / 2 < stage.clientWidth / 2 ? 'left' : 'right';
-    onSnap(`${nextVertical}-${nextHorizontal}`);
+    if (!moved || event.type !== 'pointerup') return;
+
+    const { width: stageW, height: stageH } = getStageMetrics(event.currentTarget);
+    const { left, top, pad, spanX, spanY } = computeClampedDrag(event, start, stageW, stageH);
+    if (mode === 'free') {
+      setFreePosition({
+        x: spanX > 0 ? clamp((left - pad) / spanX, 0, 1) : 0,
+        y: spanY > 0 ? clamp((top - pad) / spanY, 0, 1) : 0,
+      });
+    } else {
+      const nextVertical = top + resolvedOrbHeight / 2 < stageH / 2 ? 'top' : 'bottom';
+      const nextHorizontal = left + resolvedOrbWidth / 2 < stageW / 2 ? 'left' : 'right';
+      onSnap?.(`${nextVertical}-${nextHorizontal}`);
+    }
   };
+
+  const resolvedTitle =
+    title ?? (mode === 'free' ? 'Drag to reposition or use the arrow keys' : 'Drag to a corner or use the arrow keys');
+
+  const computedLeft =
+    dragPixels?.left ??
+    (mode === 'free'
+      ? `calc(${resolvedFreeInset}px + ${clampedFree.x} * (100% - ${resolvedOrbWidth + resolvedFreeInset * 2}px))`
+      : horizontal === 'left'
+        ? resolvedCornerInset
+        : `calc(100% - ${resolvedOrbWidth + resolvedCornerInset}px)`);
+
+  const computedTop =
+    dragPixels?.top ??
+    (mode === 'free'
+      ? `calc(${resolvedFreeInset}px + ${clampedFree.y} * (100% - ${resolvedOrbHeight + resolvedFreeInset * 2}px))`
+      : vertical === 'top'
+        ? resolvedCornerInset
+        : `calc(100% - ${resolvedOrbHeight + resolvedCornerInset}px)`);
 
   return (
     <button
+      {...rest}
       type="button"
-      className="j-drag-orb"
-      ref={buttonRef}
-      title="Drag to a corner or use the arrow keys"
+      className={clsx('j-drag-orb', className)}
+      ref={buttonRef ?? ref}
+      title={resolvedTitle}
+      aria-label={ariaLabel}
       aria-expanded={expanded}
       aria-controls={expanded ? controls : undefined}
-      data-corner={corner}
-      data-dragging={position !== null}
+      data-mode={mode}
+      data-corner={mode === 'corners' ? corner : undefined}
+      data-dragging={dragPixels !== null}
       style={{
-        width: orbWidth, justifyContent: 'center', touchAction: 'none',
-        left: position?.left ?? (horizontal === 'left' ? cornerInset : `calc(100% - ${orbWidth + cornerInset}px)`),
-        top: position?.top ?? (vertical === 'top' ? cornerInset : `calc(100% - ${orbHeight + cornerInset}px)`),
+        width: resolvedOrbWidth,
+        height: resolvedOrbHeight,
+        justifyContent: 'center',
+        touchAction: 'none',
+        left: computedLeft,
+        top: computedTop,
+        ...style,
       }}
       onPointerDown={startDrag}
       onPointerMove={moveDrag}
@@ -484,15 +1092,40 @@ export function CornerSnapOrb({
       onPointerCancel={finishDrag}
       onLostPointerCapture={finishDrag}
       onClick={(event) => {
+        onClick?.(event);
+        if (event.defaultPrevented) return;
         if (event.detail === 0 || !skipClick.current) onActivate();
         skipClick.current = false;
       }}
       onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (event.defaultPrevented) return;
+        if (mode === 'free') {
+          const stepPx = event.shiftKey ? 32 : 8;
+          let dx = 0;
+          let dy = 0;
+          switch (event.key) {
+            case 'ArrowLeft': dx = -stepPx; break;
+            case 'ArrowRight': dx = stepPx; break;
+            case 'ArrowUp': dy = -stepPx; break;
+            case 'ArrowDown': dy = stepPx; break;
+            default: return;
+          }
+          event.preventDefault();
+          const { width: stageW, height: stageH } = getStageMetrics(event.currentTarget);
+          const spanX = Math.max(1, stageW - resolvedOrbWidth - resolvedFreeInset * 2);
+          const spanY = Math.max(1, stageH - resolvedOrbHeight - resolvedFreeInset * 2);
+          setFreePosition({
+            x: clamp((clampedFree.x * spanX + dx) / spanX, 0, 1),
+            y: clamp((clampedFree.y * spanY + dy) / spanY, 0, 1),
+          });
+          return;
+        }
         switch (event.key) {
-          case 'ArrowLeft': onSnap(`${vertical}-left`); break;
-          case 'ArrowRight': onSnap(`${vertical}-right`); break;
-          case 'ArrowUp': onSnap(`top-${horizontal}`); break;
-          case 'ArrowDown': onSnap(`bottom-${horizontal}`); break;
+          case 'ArrowLeft': onSnap?.(`${vertical}-left`); break;
+          case 'ArrowRight': onSnap?.(`${vertical}-right`); break;
+          case 'ArrowUp': onSnap?.(`top-${horizontal}`); break;
+          case 'ArrowDown': onSnap?.(`bottom-${horizontal}`); break;
           default: return;
         }
         event.preventDefault();
@@ -602,28 +1235,76 @@ export function DraggableSnapOrb({ id = 'draggable-snap-orb' }: { id?: string } 
 }
 
 export function TaskProgressCard({
-  step, value, onCancel, onRetry, retryLabel = 'Retry', children,
+  step,
+  value,
+  onCancel,
+  onRetry,
+  retryLabel = 'Retry',
+  cancelLabel = 'Cancel',
+  ariaLabel = 'Task progress',
+  cancelButtonProps,
+  children,
 }: {
   step: string;
   value: number;
   onCancel?: () => void;
   onRetry?: () => void;
   retryLabel?: string;
+  cancelLabel?: string;
+  ariaLabel?: string;
+  cancelButtonProps?: HTMLAttributes<HTMLButtonElement> & DataAttributes;
   children?: ReactNode;
 }) {
   const percent = Number.isFinite(value) ? clamp(value, 0, 100) : 0;
+  const {
+    className: cancelClassName,
+    onClick: cancelOnClick,
+    ...restCancelProps
+  } = cancelButtonProps ?? {};
+
   return (
     <div style={{ ...inset, display: 'grid', gap: 8 }}>
       <div style={between}>
         <span role="status" style={heading}>{step} · {percent}%</span>
-        {(onCancel || onRetry) && <button type="button" className="j-btn" data-size="xs"
-          data-variant={onCancel ? 'ghost' : 'secondary'} onClick={onCancel ?? onRetry}>
-          {onCancel ? 'Cancel' : retryLabel}
-        </button>}
-        {onCancel && onRetry && <button type="button" className="j-btn" data-size="xs"
-          data-variant="secondary" onClick={onRetry}>{retryLabel}</button>}
+        {(onCancel || onRetry) && (
+          <div style={row}>
+            {onCancel && (
+              <button
+                {...restCancelProps}
+                type="button"
+                className={clsx('j-btn', cancelClassName)}
+                data-size="xs"
+                data-variant="ghost"
+                onClick={(event) => {
+                  cancelOnClick?.(event);
+                  if (!event.defaultPrevented) onCancel();
+                }}
+              >
+                {cancelLabel}
+              </button>
+            )}
+            {onRetry && (
+              <button
+                type="button"
+                className="j-btn"
+                data-size="xs"
+                data-variant="secondary"
+                onClick={onRetry}
+              >
+                {retryLabel}
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <div role="progressbar" aria-label="Task progress" aria-valuenow={percent} style={{ height: 5, borderRadius: 999, background: 'var(--juice-w12)' }}>
+      <div
+        role="progressbar"
+        aria-label={ariaLabel}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        style={{ height: 5, borderRadius: 999, background: 'var(--juice-w12)' }}
+      >
         <div style={{ width: `${percent}%`, height: '100%', borderRadius: 'inherit', background: 'var(--fill-on)', transition: 'width 160ms ease' }} />
       </div>
       {children}
@@ -756,6 +1437,109 @@ export function CopySnippetFlash({ id = 'copy-snippet-flash' }: { id?: string } 
       </div>
       <CopySnippet code={command} label="command" onCopied={onCopied} copyButtonRef={copyCommand} />
       <CopySnippet code={shareUrl} label="share URL" onCopied={onCopied} copyButtonRef={copyShareUrl} />
+    </div>
+  );
+}
+
+export type MaskedSecretFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & DataAttributes & {
+  ref?: Ref<HTMLInputElement>;
+  label?: string;
+  hint?: ReactNode;
+  error?: string;
+  revealLabel?: string;
+  hideLabel?: string;
+  revealed?: boolean;
+  defaultRevealed?: boolean;
+  onRevealedChange?: (revealed: boolean) => void;
+};
+
+export function MaskedSecretField({
+  ref,
+  id,
+  label,
+  hint,
+  error,
+  revealLabel = 'Show secret',
+  hideLabel = 'Hide secret',
+  revealed: controlledRevealed,
+  defaultRevealed = false,
+  onRevealedChange,
+  className,
+  disabled,
+  readOnly,
+  autoComplete = 'off',
+  ...rest
+}: MaskedSecretFieldProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const [revealed, setRevealed] = useControllableState({
+    value: controlledRevealed,
+    defaultValue: defaultRevealed,
+    onChange: onRevealedChange,
+  });
+
+  const describedBy = clsx(
+    rest['aria-describedby'],
+    hint && `${inputId}-hint`,
+    error && `${inputId}-error`,
+  );
+  const invalid = error ? true : rest['aria-invalid'];
+  const toggleLabel = revealed ? hideLabel : revealLabel;
+
+  return (
+    <div className="j-field">
+      {label !== undefined && (
+        <div className="j-field-label-row">
+          <label htmlFor={inputId}>{label}</label>
+        </div>
+      )}
+      <div
+        className="j-input-box"
+        style={{ opacity: disabled ? 0.55 : undefined }}
+        data-invalid={invalid && invalid !== 'false' ? true : undefined}
+      >
+        <KeyRound size={14} aria-hidden="true" style={{ color: 'var(--juice-mute)', flexShrink: 0 }} />
+        <input
+          {...rest}
+          ref={ref}
+          id={inputId}
+          type={revealed ? 'text' : 'password'}
+          className={clsx('j-input-el', className)}
+          disabled={disabled}
+          readOnly={readOnly}
+          autoComplete={autoComplete}
+          aria-label={rest['aria-label'] ?? (label === undefined ? rest.placeholder : undefined)}
+          aria-invalid={invalid}
+          aria-describedby={describedBy || undefined}
+        />
+        <button
+          type="button"
+          className="j-btn"
+          data-size="xs"
+          data-variant="ghost"
+          disabled={disabled}
+          aria-label={toggleLabel}
+          aria-pressed={revealed}
+          title={toggleLabel}
+          style={{ width: 24, height: 24, padding: 0, flexShrink: 0 }}
+          onClick={() => setRevealed(!revealed)}
+        >
+          {revealed ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+        </button>
+      </div>
+      {hint !== undefined && (
+        <div id={`${inputId}-hint`} className="j-field-hint">
+          {hint}
+        </div>
+      )}
+      <div
+        aria-live="polite"
+        className="j-field-error"
+        id={`${inputId}-error`}
+        style={{ display: error ? undefined : 'contents' }}
+      >
+        {error}
+      </div>
     </div>
   );
 }

@@ -502,13 +502,25 @@ export function Progress({
   max = 100,
   label,
   valueLabel,
+  compact = false,
+  indeterminateLabel = 'In progress',
+  'aria-label': ariaLabel,
+  'aria-labelledby': labelledBy,
+  className,
+  style,
 }: {
   value: number | null;
   min?: number;
   max?: number;
-  label: string;
+  label?: string;
+  compact?: boolean;
+  indeterminateLabel?: string;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
+  className?: string;
+  style?: CSSProperties;
   valueLabel?: string;
-}) {
+} & ({ label: string } | { 'aria-label': string } | { 'aria-labelledby': string } | { compact: true })) {
   const labelId = useId();
   const indeterminate = value === null || !Number.isFinite(value);
   const safeVal = indeterminate ? min : Math.min(max, Math.max(min, value));
@@ -518,47 +530,58 @@ export function Progress({
       ? Math.min(100, Math.max(0, ((safeVal - min) / (max - min)) * 100))
       : 0;
   const complete = !indeterminate && safeVal >= max;
-  const displayValue = indeterminate ? 'Running…' : (valueLabel ?? `${Math.round(pct)}%`);
+  const displayValue = indeterminate ? indeterminateLabel : (valueLabel ?? `${Math.round(pct)}%`);
+  const visibleLabel = !compact && label && !ariaLabel ? labelId : undefined;
+  const compactLabel = compact && !labelledBy ? label ?? 'Progress' : undefined;
+
+  const track = (
+    <div
+      role="progressbar"
+      aria-labelledby={labelledBy ?? visibleLabel}
+      aria-label={ariaLabel ?? compactLabel}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={indeterminate ? undefined : Math.round(safeVal * 100) / 100}
+      aria-valuetext={displayValue}
+      data-indeterminate={indeterminate ? 'true' : undefined}
+      data-complete={complete ? 'true' : undefined}
+      className={clsx('j-slider-rail', compact && className)}
+      style={{ height: 7, ...(compact && style) }}
+    >
+      {indeterminate ? (
+        <div className="j-skel-bar" style={{ width: '100%', height: '100%', borderRadius: 99 }} />
+      ) : (
+        <div
+          className="j-slider-fill"
+          style={{
+            width: `${pct}%`,
+            background: complete ? 'var(--juice-ok)' : 'var(--juice-signal)',
+            transition: 'width 200ms var(--juice-out), background-color 180ms ease',
+          }}
+        />
+      )}
+    </div>
+  );
+  if (compact) return track;
 
   return (
     <div
-      className="j-field"
+      className={clsx('j-field', className)}
+      style={style}
       data-indeterminate={indeterminate ? 'true' : undefined}
       data-complete={complete ? 'true' : undefined}
     >
       <div className="j-field-label-row">
-        <span id={labelId} style={{ color: 'var(--fill-on)', fontWeight: 500 }}>
-          {label}
-        </span>
+        {label && (
+          <span id={labelId} style={{ color: 'var(--fill-on)', fontWeight: 500 }}>
+            {label}
+          </span>
+        )}
         <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--fill-on)' }}>
           {displayValue}
         </span>
       </div>
-      <div
-        role="progressbar"
-        aria-labelledby={labelId}
-        aria-valuemin={min}
-        aria-valuemax={max}
-        aria-valuenow={indeterminate ? undefined : Math.round(safeVal * 100) / 100}
-        aria-valuetext={displayValue}
-        data-indeterminate={indeterminate ? 'true' : undefined}
-        data-complete={complete ? 'true' : undefined}
-        className="j-slider-rail"
-        style={{ height: 7 }}
-      >
-        {indeterminate ? (
-          <div className="j-skel-bar" style={{ width: '100%', height: '100%', borderRadius: 99 }} />
-        ) : (
-          <div
-            className="j-slider-fill"
-            style={{
-              width: `${pct}%`,
-              background: complete ? 'var(--juice-ok)' : 'var(--juice-signal)',
-              transition: 'width 200ms var(--juice-out), background-color 180ms ease',
-            }}
-          />
-        )}
-      </div>
+      {track}
     </div>
   );
 }

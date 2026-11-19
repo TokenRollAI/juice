@@ -26,6 +26,7 @@ export {
   Button,
   IconButton,
   TextField,
+  Textarea,
   Select,
   RadioCard,
   NumberField,
@@ -37,6 +38,8 @@ export {
   Breadcrumbs,
   Pagination,
   Alert,
+  Skeleton,
+  Spinner,
 } from './components-foundation-nav.tsx';
 
 // Radix-grade WAI-ARIA primitives
@@ -83,6 +86,7 @@ export {
 export {
   placeFloating,
   FloatingPopover,
+  CenterPopover,
   useTooltip,
   Tooltip,
   BreadcrumbSelect,
@@ -90,9 +94,18 @@ export {
   SwatchGridPicker,
   InspectorSheet,
   type FloatingPlacement,
+  type AnchorRect,
+  type FloatingPopoverProps,
+  type CenterPopoverProps,
+  type TooltipOptions,
+  type BreadcrumbSelectOption,
+  type BreadcrumbSelectItem,
+  type BreadcrumbSelectGroup,
+  type BreadcrumbSelectProps,
   type AdaptiveToolbarAction,
   type SwatchPalette,
   type InspectorRule,
+  type InspectorSheetLabels,
 } from './components-portal-floating.tsx';
 
 // Media, timeline & workbench primitives
@@ -101,9 +114,40 @@ export {
   CopySnippet,
   MediaTransport,
   StepTimeline,
+  useIdleVisibility,
   IdleAutoHideBar,
   CornerSnapOrb,
   TaskProgressCard,
+  MaskedSecretField,
   MaskedSecretInput,
+  type CopySnippetProps,
+  type MediaTransportButtonKey,
+  type MediaTransportLabels,
+  type TimelineStepDwell,
+  type TimelineStepItem,
+  type StepTimelineLabels,
   type SnapCorner,
+  type OrbPosition,
+  type CornerSnapOrbProps,
+  type MaskedSecretFieldProps,
 } from './components-media-workbench.tsx';
+
+// Composable multi-part SaaS & app primitives (v0.2.0)
+export {
+  Dialog,
+  Sheet,
+  DropdownMenu,
+  Tabs,
+  Accordion,
+  createToastManager,
+  ToastProvider,
+  useToastManager,
+  ToastViewport,
+  Table,
+  Avatar,
+  ChartTooltipContent,
+  ChartLegendContent,
+  OtpInput,
+  type ToastOptions,
+  type ToastManager,
+} from './components-composable.tsx';
