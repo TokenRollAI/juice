@@ -13,3 +13,4 @@ export * from './components-portal-floating.tsx';
 export * from './components-media-workbench.tsx';
 export * from './components-composable.tsx';
 export * from './components-workbench.tsx';
+export * from './components-ai-kit.tsx';

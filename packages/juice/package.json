@@ -1,6 +1,6 @@
 {
   "name": "@tokenroll/juice",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Tactile, behavior-complete React UI components, Radix & Base UI primitives, AI agent workflows, concentric color-mix tokens, and procedural Web Audio sounds.",
   "license": "MIT",
   "type": "module",
@@ -39,6 +39,7 @@
     "dist",
     "bin",
     "src",
+    "!src/__tests__",
     "README.md"
   ],
   "main": "./dist/index.js",

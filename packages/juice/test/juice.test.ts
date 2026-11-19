@@ -84,14 +84,15 @@ describe('@tokenroll/juice Option A clean subpaths & provider-optional fallback'
 describe('@tokenroll/juice CLI (bin/juice.mjs)', () => {
   const cliPath = resolve(import.meta.dirname, '../bin/juice.mjs');
 
-  it('lists all 12 source modules as JSON including workbench', () => {
+  it('lists all 13 source modules as JSON including workbench and ai-kit', () => {
     const out = execFileSync(process.execPath, [cliPath, 'list', '--json'], { encoding: 'utf8' });
     const parsed = JSON.parse(out) as { modules: Array<{ id: string; exports: string[] }> };
-    expect(parsed.modules.length).toBe(12);
+    expect(parsed.modules.length).toBe(13);
     expect(parsed.modules.some((m) => m.id === 'ai-agents')).toBe(true);
     expect(parsed.modules.some((m) => m.id === 'portal-floating')).toBe(true);
     expect(parsed.modules.some((m) => m.id === 'composable')).toBe(true);
     expect(parsed.modules.some((m) => m.id === 'workbench')).toBe(true);
+    expect(parsed.modules.some((m) => m.id === 'ai-kit')).toBe(true);
   });
 
   it('initializes core files and copies component source + transitive deps cleanly', () => {

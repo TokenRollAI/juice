@@ -64,6 +64,13 @@ const MODULES = [
     description: 'CommandDialog, CommandPalettePrimitive, AgentActionCard, AgentStepRow, AgentReasoningBlock, PromptComposer, DiffBlock',
   },
   {
+    id: 'ai-kit',
+    aliases: ['prompt-kit', 'chat-container', 'chat-message', 'chain-of-thought', 'tool-call-card', 'thinking-bar', 'prompt-suggestion', 'code-block', 'source-chip'],
+    file: 'components-ai-kit.tsx',
+    category: 'Composable AI Chat & Reasoning Primitives',
+    description: 'ChatContainerRoot, ChatContainerContent, ChatContainerScrollAnchor, ScrollToBottomButton, useChatContainer, ChatMessage, MessageAvatar, MessageContent, MessageActions, MessageAction, FeedbackBar, ChainOfThought*, ToolCallCard, ThinkingBar, PromptSuggestion, CodeBlock*, SourceChip, SourceList',
+  },
+  {
     id: 'radix-primitives',
     aliases: ['radix'],
     file: 'components-radix-primitives.tsx',
