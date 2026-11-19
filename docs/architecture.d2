@@ -1,44 +1,50 @@
 direction: right
 
 title: {
-  label: "Juice UI Architecture (v0.2 — 28 Blocks, 12 Procedural Sounds & Agent Bridge)"
+  label: "Juice UI Architecture (v0.4 — 86 Blocks, Radix + Base UI + AI Agents + Portal Workbench, React & Vue 3)"
   near: top-center
   shape: text
   style.font-size: 22
   style.bold: true
 }
 
-foundation: "1. Foundation & Tokens (@juice-ui/react)" {
-  tokens: "Concentric CSS Tokens\n(--fill-on / --fill-slab + 6-step color-mix ramp)"
-  sound: "Procedural Web Audio Synth\n(12 zero-asset oscillator + filter sounds)"
-  behaviors: "Headless Behaviors & Agent Bridge\n(ControllableState / RovingFocus / ScrubDrag / __juiceAgent)"
+foundation: "1. Foundation & Tokens (@juice-ui/react & @juice-ui/vue)" {
+  tokens: "Concentric CSS Tokens\n(--fill-on / --fill-slab + 6-step color-mix ramp\n320px Card · 20px Outer -> 14px Inner -> 10px Control)"
+  sound: "Procedural Web Audio Synth\n(12 zero-asset oscillator + filter sounds < 3KB)"
+  behaviors: "Headless Behaviors & Agent Bridge\n(ControllableState / RovingFocus / ScrubDrag / placeFloating / __juiceAgent)"
 }
 
-catalog: "2. 28-Block Three-Pillar Catalog" {
+catalog: "2. 86-Block Five-Pillar Universal Catalog" {
+  everyday: "Foundation, Radix & Base UI Primitives (30)\nButton, Input, Select, Combobox, Autocomplete, CheckboxGroup (3-state),\nField/Fieldset/Form, NumberScrubField, DualRangeSlider, Collapsible,\nDialog, AlertDialog, ContextMenu, Menubar, NavigationMenu, ToggleToolbar,\nScrollArea, AspectRatio, Meter, Progress, PreviewCard, Avatar, Calendar"
+  ai_agents: "Deep AI Chat & Agentic Workflows (23)\nComposer, SlashMentionComposer, ThinkingMorph (.j-status-dot + shimmer),\nGroundedAnswer, MessageBranchThread, ToolApprovalGate (HITL), AgentPlanChecklist,\nSubagentSwarmBoard, McpServerRoster, ContextBudgetMeter, ArtifactCanvas,\nTerminalStreamCard, VisionRegionAsk, VoiceOrbSession, ModelArenaCompare"
   tactile: "Tactile & Direct Manipulation (13)\nStateButton, ScrubPanel, SlideConfirm, DynamicIsland, MorphCard,\nSplitCompare, OtpField, PassStrength, TimeSlotPicker, RadialDial,\nSwipeCard, SelectionToolbar, CommandPalette"
-  workspace: "High-Density Workspace Surfaces (8)\nDataGrid (InlineEdit), TreeExplorer, ResizableSplit, FilterBar,\nDrawerSheet (Vaul), TabsMorph, TransferList, ToastStack"
-  ai_data: "AI, Data & Media Narrative (7)\nComposer, ThinkingMorph, RollingNumber, MetricRibbon,\nAudioWaveTrim, CodeDiffReveal, SkeletonMorph"
+  portal_studio: "Portal, Floating & Studio Primitives (14)\nFloatingPopover (fullscreen-aware), HoverPreviewList, BreadcrumbDropdownBar,\nAdaptiveToolbar, SwatchPreviewMatrix, FloatingInspectorSheet, DataGrid,\nTreeExplorer, ResizableSplit, FilterBar, DrawerSheet, TabsMorph, TransferList"
+  media_workbench: "Media, Timeline & Workbench Primitives (6)\nMediaTransportDock (StepTimeline), IdleFullscreenPill, DraggableSnapOrb,\nBackgroundTaskMenu (ProgressRing), CopySnippetFlash, MaskedSecretManager"
 }
 
 consumers: "3. Independent Consumers" {
-  bench: "Juice Bench (apps/bench)\n28 Live Blocks, Search, Sound Pad & act() Inspector"
-  webapp: "Production Web & AI Apps\nDirect React Import + Agent Skill (skills/juice)"
-  joplo: "Joplo Host Adapter (Ready Bridge)\nMaps data-jid, state.inputs & Engine Clock (animate=false)"
+  bench: "Juice Bench (apps/bench)\n86 Live Blocks, Search, 12-Pad Synth & act() Inspector\nReact | Vue 3 | Joplo Code Tabs"
+  webapp: "Production Web Apps & Joplo Web Refactor\n100% Domain-Agnostic Primitives + Agent Skill (skills/juice)"
+  joplo: "Joplo Host Adapter (Ready Bridge)\nMaps data-jid, state.inputs & Deterministic Static Frame (animate=false)"
 }
 
-foundation.tokens -> catalog.tactile: "Derives light/dark & slab/solid ramps"
-foundation.tokens -> catalog.workspace: "Concentric radii (20px -> 14px -> 10px)"
+foundation.tokens -> catalog.everyday: "Derives light/dark & slab/solid ramps"
+foundation.tokens -> catalog.portal_studio: "Concentric radii (20px -> 14px -> 10px)"
 foundation.sound -> catalog.tactile: "Fires tap / latch / scrub / paid / landed cues"
-foundation.behaviors -> catalog.tactile: "Exposes controlled props & data-state slots"
-foundation.behaviors -> catalog.workspace: "Keyboard roving focus, inline edit & resize"
-foundation.behaviors -> catalog.ai_data: "Deterministic state & digit transitions"
+foundation.behaviors -> catalog.everyday: "WAI-ARIA keyboard roving, typeahead & form state"
+foundation.behaviors -> catalog.portal_studio: "Viewport collision flip & hover-preview rollback"
+foundation.behaviors -> catalog.ai_agents: "Deterministic streaming, HITL approval & swarm state"
+foundation.behaviors -> catalog.media_workbench: "Step timeline scrub, idle wake & corner snap"
 
-catalog.tactile -> consumers.bench: "Live playable blocks on canvas"
-catalog.workspace -> consumers.bench: "Live inspectable state machine"
-catalog.ai_data -> consumers.bench: "Interactive diff, trim & number scrub"
+catalog.everyday -> consumers.bench: "30 Foundation / Radix / Base UI blocks"
+catalog.ai_agents -> consumers.bench: "23 Deep AI & Agent blocks"
+catalog.tactile -> consumers.bench: "13 Tactile micro-interaction blocks"
+catalog.portal_studio -> consumers.bench: "14 Portal & workspace blocks"
+catalog.media_workbench -> consumers.bench: "6 Media & workbench blocks"
 
-catalog.tactile -> consumers.webapp: "1:1 production components"
-catalog.ai_data -> consumers.webapp: "1:1 AI agent interfaces"
+catalog.portal_studio -> consumers.webapp: "Universal studio & floating primitives"
+catalog.media_workbench -> consumers.webapp: "Transport, progress ring & secret vault"
+catalog.ai_agents -> consumers.webapp: "1:1 AI agent interfaces"
 
 foundation.behaviors -> consumers.joplo: "snapshot() / act() + controlled value props"
 foundation.tokens -> consumers.joplo: "Maps --jp-ink & --jp-surface to --fill-on & --fill-slab"

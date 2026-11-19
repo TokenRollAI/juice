@@ -16,11 +16,10 @@ import {
 import { useReducedMotion } from 'motion/react';
 import { useControllableState, useJuice, useJuiceAgentNode, useRovingFocus } from './behaviors.tsx';
 import { Badge, Kbd, RollingNumber, SegmentedControl, Switch } from './components.tsx';
+import { Button, IconButton } from './components-foundation-forms.tsx';
 
-const card = { padding: 10 } as const;
 const row = { display: 'flex', alignItems: 'center', gap: 6 } as const;
 const between = { ...row, justifyContent: 'space-between' } as const;
-const inset = { background: 'var(--juice-w6)', borderRadius: 'var(--juice-r-inner)', padding: 10 } as const;
 const muted = { color: 'var(--juice-mute)', fontSize: 12 } as const;
 const visuallyHidden = {
   position: 'absolute',
@@ -97,15 +96,19 @@ export function DialogModal({
   useJuiceAgentNode(id, 'DialogModal', { open, confirmed }, { openDialog, closeDialog, confirmArchive });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={card}>
-      <div style={{ ...inset, display: 'grid', alignItems: 'center', minHeight: 118 }}>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Project archive</span>
+        <span className="j-ai-sub">Workspace</span>
+      </div>
+      <div className="j-ai-surface" style={{ display: 'grid', alignItems: 'center', minHeight: 118 }}>
         {open ? (
           <section
             ref={dialog}
             role="dialog"
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
-            style={{ borderRadius: 'var(--juice-r-inner)', background: 'var(--fill-slab)', padding: 10 }}
+            style={{ minWidth: 0 }}
             onKeyDown={(event) => {
               if (event.key !== 'Escape' || event.defaultPrevented) return;
               event.preventDefault();
@@ -113,14 +116,14 @@ export function DialogModal({
               closeDialog();
             }}
           >
-            <strong id={titleId} style={{ fontSize: 14 }}>Archive "juice-bench"?</strong>
-            <p id={descriptionId} style={{ ...muted, margin: '4px 0 10px' }}>Move this project out of the active workspace.</p>
+            <strong id={titleId} style={{ fontSize: 14 }}>Archive juice-bench?</strong>
+            <p id={descriptionId} style={{ ...muted, lineHeight: 1.5, margin: '4px 0 12px' }}>This moves the project out of your active workspace.</p>
             <div style={{ ...row, justifyContent: 'flex-end' }}>
               <button ref={cancel} type="button" className="j-btn" data-size="sm" data-variant="ghost" onClick={closeDialog}>
                 Cancel
               </button>
-              <button type="button" className="j-btn" data-size="sm" onClick={confirmArchive}>
-                Confirm Archive
+              <button type="button" className="j-btn" data-size="sm" data-variant="danger" onClick={confirmArchive}>
+                Archive project
               </button>
             </div>
           </section>
@@ -139,8 +142,8 @@ export function DialogModal({
 
 const MENU_COMMANDS = [
   { id: 'duplicate', label: 'Duplicate', shortcut: '⌘D', key: 'd', icon: Copy },
-  { id: 'copy-link', label: 'Copy Link', shortcut: '⌘L', key: 'l', icon: ExternalLink },
-  { id: 'delete', label: 'Delete Block', shortcut: '⌫', key: 'backspace', icon: Trash2 },
+  { id: 'copy-link', label: 'Copy link', shortcut: '⌘L', key: 'l', icon: ExternalLink },
+  { id: 'delete', label: 'Delete block', shortcut: '⌫', key: 'backspace', icon: Trash2 },
 ] as const;
 const MENU_ITEMS = ['guides', ...MENU_COMMANDS.map((item) => item.id)] as const;
 type MenuItem = (typeof MENU_ITEMS)[number];
@@ -220,92 +223,106 @@ export function DropdownMenuKit({ id = 'dropdown-menu' }: { id?: string } = {}) 
     : selectedLabel;
 
   return (
-    <div
-      ref={cardRef}
-      id={id}
-      className="j-slab j-fnd-card"
-      style={card}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (!open || event.defaultPrevented) return;
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          event.stopPropagation();
-          closeMenu();
-          return;
-        }
-        if (event.altKey || event.shiftKey) return;
-        const command = MENU_COMMANDS.find((item) => item.key === event.key.toLowerCase());
-        const hasModifier = event.metaKey || event.ctrlKey;
-        if (!command || hasModifier === (command.id === 'delete')) return;
-        event.preventDefault();
-        void selectItem(command.id);
-      }}
-    >
-      <div style={between}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Block actions</span>
-        <button
-          ref={trigger}
-          id={triggerId}
-          type="button"
-          className="j-btn"
-          data-size="sm"
-          data-variant="secondary"
-          aria-label="Block actions"
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-controls={open ? menuId : undefined}
-          onClick={() => {
-            playSound('tap');
-            if (open) closeMenu();
-            else openMenu('guides');
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-            event.preventDefault();
-            openMenu(event.key === 'ArrowDown' ? 'guides' : 'delete');
-          }}
-        >
-          <MoreHorizontal size={16} aria-hidden="true" />
-        </button>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Block actions</span>
+        <span className="j-ai-sub" role="status">{feedback || 'Canvas'}</span>
       </div>
-      {open && (
-        <div id={menuId} className="j-menu-list" role="menu" aria-labelledby={triggerId} onKeyDown={onKeyDown}>
+      <div
+        ref={cardRef}
+        className="j-ai-surface"
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        }}
+        onKeyDown={(event) => {
+          if (!open || event.defaultPrevented) return;
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            closeMenu();
+            return;
+          }
+          if (event.altKey || event.shiftKey) return;
+          const command = MENU_COMMANDS.find((item) => item.key === event.key.toLowerCase());
+          const hasModifier = event.metaKey || event.ctrlKey;
+          if (!command || hasModifier === (command.id === 'delete')) return;
+          event.preventDefault();
+          void selectItem(command.id);
+        }}
+      >
+        <div style={between}>
+          <span style={{ fontSize: 12 }}>Selected block</span>
           <button
-            ref={(node) => { items.current.guides = node; }}
+            ref={trigger}
+            id={triggerId}
             type="button"
-            role="menuitemcheckbox"
-            aria-checked={guides}
-            tabIndex={-1}
-            data-highlighted={active === 'guides'}
-            className="j-menu-item"
-            onFocus={() => setActive('guides')}
-            onClick={toggleGuides}
+            className="j-btn"
+            data-size="sm"
+            data-variant="secondary"
+            aria-label="Block actions"
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-controls={open ? menuId : undefined}
+            onClick={() => {
+              playSound('tap');
+              if (open) closeMenu();
+              else openMenu('guides');
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+              event.preventDefault();
+              openMenu(event.key === 'ArrowDown' ? 'guides' : 'delete');
+            }}
           >
-            Show Grid Guides {guides && <Check size={14} aria-hidden="true" />}
+            <MoreHorizontal size={16} aria-hidden="true" />
           </button>
-          {MENU_COMMANDS.map(({ id: item, label, shortcut, icon: Icon }) => (
-            <button
-              key={item}
-              ref={(node) => { items.current[item] = node; }}
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
-              data-highlighted={active === item}
-              data-tone={item === 'delete' ? 'danger' : undefined}
-              className="j-menu-item"
-              onFocus={() => setActive(item)}
-              onClick={() => { void selectItem(item); }}
-            >
-              <span style={row}><Icon size={13} aria-hidden="true" />{label}</span>
-              <Kbd>{shortcut}</Kbd>
-            </button>
-          ))}
         </div>
-      )}
-      {!open && feedback && <span role="status" style={muted}>{feedback}</span>}
+        {open && (
+          <div id={menuId} className="j-menu-list" style={{ background: 'transparent', padding: 0 }} role="menu" aria-labelledby={triggerId}
+            onKeyDown={(event) => {
+              onKeyDown(event);
+              if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey || !event.key.trim()) return;
+              const start = MENU_ITEMS.indexOf(active) + 1;
+              const ordered = [...MENU_ITEMS.slice(start), ...MENU_ITEMS.slice(0, start)];
+              const match = ordered.find((key) => items.current[key]?.textContent?.trim().toLowerCase().startsWith(event.key.toLowerCase()));
+              if (match) {
+                event.preventDefault();
+                focusItem(match);
+              }
+            }}>
+            <button
+              ref={(node) => { items.current.guides = node; }}
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={guides}
+              tabIndex={-1}
+              data-highlighted={active === 'guides'}
+              className="j-menu-item"
+              onFocus={() => setActive('guides')}
+              onClick={toggleGuides}
+            >
+              Show grid guides {guides && <Check size={14} aria-hidden="true" />}
+            </button>
+            {MENU_COMMANDS.map(({ id: item, label, shortcut, icon: Icon }) => (
+              <button
+                key={item}
+                ref={(node) => { items.current[item] = node; }}
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                data-highlighted={active === item}
+                data-tone={item === 'delete' ? 'danger' : undefined}
+                className="j-menu-item"
+                onFocus={() => setActive(item)}
+                onClick={() => { void selectItem(item); }}
+              >
+                <span style={row}><Icon size={13} aria-hidden="true" />{label}</span>
+                <Kbd>{shortcut}</Kbd>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -351,9 +368,16 @@ export function PopoverTooltipKit({ id = 'popover-tooltip' }: { id?: string } = 
   );
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={card}>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Share project</span>
+        <span className="j-ai-sub">{isPublic ? 'Public link' : 'Restricted'}</span>
+      </div>
       <div
-        style={{ display: 'grid', gap: 8 }}
+        className="j-ai-surface"
+        onBlur={(event) => {
+          if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        }}
         onKeyDown={(event) => {
           if (event.key !== 'Escape' || !open) return;
           event.preventDefault();
@@ -368,7 +392,7 @@ export function PopoverTooltipKit({ id = 'popover-tooltip' }: { id?: string } = 
           className="j-btn"
           data-size="sm"
           data-variant="secondary"
-          style={{ justifySelf: 'start' }}
+          style={{ alignSelf: 'flex-start' }}
           aria-expanded={open}
           aria-controls={open ? popoverId : undefined}
           onClick={() => {
@@ -379,11 +403,11 @@ export function PopoverTooltipKit({ id = 'popover-tooltip' }: { id?: string } = 
           <Share2 size={13} aria-hidden="true" /> Quick share
         </button>
         {open && (
-          <div id={popoverId} role="region" aria-label="Sharing settings" style={{ ...inset, display: 'grid', gap: 8 }}>
-            <div style={between}>
-              <span style={{ fontSize: 13 }}>Public Link</span>
+          <div id={popoverId} role="region" aria-label="Sharing settings" style={{ display: 'grid', gap: 8 }}>
+            <label style={{ ...between, minHeight: 32, cursor: 'pointer' }}>
+              <span style={{ fontSize: 13 }}>Public link</span>
               <Switch checked={isPublic} aria-label="Public Link" onChange={setPublic} />
-            </div>
+            </label>
             <div style={between}>
               <span style={muted}>Link role</span>
               <SegmentedControl options={SHARE_ROLES} value={role} onChange={setRole} />
@@ -421,7 +445,7 @@ export function PopoverTooltipKit({ id = 'popover-tooltip' }: { id?: string } = 
           type="button"
           className="j-btn"
           data-size="sm"
-          data-variant="outline"
+          data-variant="ghost"
           aria-describedby={tooltip ? tooltipId : undefined}
           onFocus={() => setTooltip(true)}
           onBlur={() => setTooltip(false)}
@@ -438,7 +462,7 @@ export function PopoverTooltipKit({ id = 'popover-tooltip' }: { id?: string } = 
             }
           }}
         >
-          Hover or focus · <Kbd>⌘/</Kbd>
+          Shortcuts <Kbd>⌘/</Kbd>
         </button>
         {tooltip && (
           <div
@@ -484,52 +508,68 @@ export function AccordionKit({ id = 'accordion-kit' }: { id?: string } = {}) {
   useJuiceAgentNode(id, 'AccordionKit', { openItems }, { openItem, toggleAll });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={card}>
-      {ACCORDION_ITEMS.map((item, index) => {
-        const expanded = openItems.includes(item.id);
-        const triggerId = `${headingId}-${item.id}-trigger`;
-        const panelId = `${headingId}-${item.id}-panel`;
-        const transition = animate && !reducedMotion ? '180ms var(--juice-out)' : undefined;
-        return (
-          <div key={item.id} className="j-acc-item">
-            <h3 style={{ margin: 0 }}>
-              <button
-                id={triggerId}
-                type="button"
-                className="j-acc-trigger"
-                aria-expanded={expanded}
-                aria-controls={panelId}
-                onClick={() => {
-                  playSound('tap');
-                  setOpenItems((previous) =>
-                    previous.includes(item.id) ? previous.filter((open) => open !== item.id) : [...previous, item.id],
-                  );
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Implementation notes</span>
+        <span className="j-ai-sub">{openItems.length}/{ACCORDION_ITEMS.length} open</span>
+      </div>
+      <div className="j-ai-surface" style={{ gap: 0 }}>
+        {ACCORDION_ITEMS.map((item, index) => {
+          const expanded = openItems.includes(item.id);
+          const triggerId = `${headingId}-${item.id}-trigger`;
+          const panelId = `${headingId}-${item.id}-panel`;
+          const transition = animate && !reducedMotion ? '180ms var(--juice-out)' : undefined;
+          return (
+            <div key={item.id} className="j-acc-item" style={{ background: 'transparent', overflow: 'visible' }}>
+              <h3 style={{ margin: 0 }}>
+                <button
+                  id={triggerId}
+                  type="button"
+                  className="j-acc-trigger"
+                  aria-expanded={expanded}
+                  aria-controls={panelId}
+                  onKeyDown={(event) => {
+                    const triggers = event.currentTarget.closest('.j-ai-surface')?.querySelectorAll<HTMLButtonElement>('.j-acc-trigger');
+                    if (!triggers) return;
+                    const count = triggers.length;
+                    const target = { ArrowDown: (index + 1) % count, ArrowUp: (index + count - 1) % count, Home: 0, End: count - 1 };
+                    const next = target[event.key as keyof typeof target];
+                    if (typeof next !== 'number') return;
+                    event.preventDefault();
+                    triggers[next]?.focus();
+                  }}
+                  onClick={() => {
+                    playSound('tap');
+                    setOpenItems((previous) =>
+                      previous.includes(item.id) ? previous.filter((open) => open !== item.id) : [...previous, item.id],
+                    );
+                  }}
+                >
+                  {item.title}
+                  <ChevronDown
+                    size={14}
+                    aria-hidden="true"
+                    style={{ transform: expanded ? 'rotate(180deg)' : undefined, transition: transition && `transform ${transition}` }}
+                  />
+                </button>
+              </h3>
+              <div
+                id={panelId}
+                role="region"
+                aria-labelledby={triggerId}
+                inert={!expanded}
+                style={{
+                  display: 'grid',
+                  gridTemplateRows: expanded ? '1fr' : '0fr',
+                  transition: transition && `grid-template-rows ${transition}`,
                 }}
               >
-                {index + 1}. {item.title}
-                <ChevronDown
-                  size={14}
-                  aria-hidden="true"
-                  style={{ transform: expanded ? 'rotate(180deg)' : undefined, transition: transition && `transform ${transition}` }}
-                />
-              </button>
-            </h3>
-            <div
-              id={panelId}
-              role="region"
-              aria-labelledby={triggerId}
-              inert={!expanded}
-              style={{
-                display: 'grid',
-                gridTemplateRows: expanded ? '1fr' : '0fr',
-                transition: transition && `grid-template-rows ${transition}`,
-              }}
-            >
-              <div style={{ overflow: 'hidden' }}><div className="j-acc-body">{item.content}</div></div>
+                <div style={{ overflow: 'hidden' }}><div className="j-acc-body">{item.content}</div></div>
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -543,17 +583,19 @@ export function Breadcrumbs({ segments, current, onNavigate }: {
     <nav aria-label="Breadcrumbs">
       <ol style={{ ...row, gap: 0, flexWrap: 'wrap', listStyle: 'none', padding: 0, margin: 0 }}>
         {segments.map((segment, index) => (
-          <li key={index} style={{ ...row, gap: 0 }}>
+          <li key={index} style={{ ...row, gap: 0, maxWidth: '100%' }}>
             {index > 0 && <ChevronRight size={11} color="var(--juice-mute)" aria-hidden="true" />}
             <button
               type="button"
               className="j-btn"
               data-size="xs"
               data-variant={index === current ? 'secondary' : 'ghost'}
+              title={segment}
+              style={{ minWidth: 0, fontWeight: index === current ? 600 : undefined }}
               aria-current={index === current ? 'page' : undefined}
               onClick={() => onNavigate(index)}
             >
-              {segment}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{segment}</span>
             </button>
           </li>
         ))}
@@ -567,47 +609,48 @@ export function Pagination({ page, pageCount, onChange }: {
   pageCount: number;
   onChange: (page: number) => void;
 }) {
+  const nav = useRef<HTMLElement>(null);
   return (
-    <nav aria-label="Pagination" style={{ ...row, flexWrap: 'wrap' }}>
-      <button
-        type="button"
-        className="j-btn"
-        data-size="sm"
-        data-variant="ghost"
-        aria-label="Previous page"
-        disabled={page <= 1}
+    <nav ref={nav} aria-label="Pagination" style={{ ...row, gap: 2, flexWrap: 'wrap', fontVariantNumeric: 'tabular-nums' }}>
+      <IconButton
+        variant="ghost"
+        label="Previous page"
+        disabled={page <= 1 || pageCount < 1}
         onClick={() => onChange(page - 1)}
       >
         <ChevronLeft size={14} aria-hidden="true" />
-      </button>
+      </IconButton>
       {Array.from({ length: pageCount }, (_, index) => {
         const number = index + 1;
         return (
-          <button
+          <Button
             key={number}
-            type="button"
-            className="j-btn"
-            data-size="sm"
-            data-variant={number === page ? 'primary' : 'ghost'}
+            size="sm"
+            style={{ minWidth: 30, paddingInline: 5 }}
+            variant={number === page ? 'primary' : 'ghost'}
             aria-label={`Page ${number}`}
             aria-current={number === page ? 'page' : undefined}
+            data-page={number}
+            onKeyDown={(event) => {
+              const next = { ArrowRight: number + 1, ArrowLeft: number - 1, Home: 1, End: pageCount }[event.key];
+              if (next === undefined) return;
+              event.preventDefault();
+              nav.current?.querySelector<HTMLButtonElement>(`[data-page="${next}"]`)?.focus();
+            }}
             onClick={() => onChange(number)}
           >
             {number}
-          </button>
+          </Button>
         );
       })}
-      <button
-        type="button"
-        className="j-btn"
-        data-size="sm"
-        data-variant="ghost"
-        aria-label="Next page"
+      <IconButton
+        variant="ghost"
+        label="Next page"
         disabled={page >= pageCount}
         onClick={() => onChange(page + 1)}
       >
         <ChevronRight size={14} aria-hidden="true" />
-      </button>
+      </IconButton>
     </nav>
   );
 }
@@ -640,7 +683,11 @@ export function NavPagination({ id = 'nav-pagination' }: { id?: string } = {}) {
   );
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={card}>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Package directory</span>
+        <span className="j-ai-sub">{TOTAL_ITEMS} items</span>
+      </div>
       <Breadcrumbs
         segments={WORKSPACE_PATH}
         current={current}
@@ -651,7 +698,7 @@ export function NavPagination({ id = 'nav-pagination' }: { id?: string } = {}) {
           setPageValue(1);
         }}
       />
-      <div style={{ ...inset, display: 'grid', justifyItems: 'center', gap: 6 }}>
+      <div className="j-ai-surface" style={{ display: 'grid', justifyItems: 'center', gap: 6 }}>
         <Pagination page={page} pageCount={PAGE_COUNT} onChange={setPage} />
         <div role="status" style={muted}>
           <span style={visuallyHidden}>{first}–{last} of {TOTAL_ITEMS}</span>
@@ -669,8 +716,13 @@ type AlertTone = 'ok' | 'warn' | 'danger';
 export function Alert({ tone, children }: { tone: AlertTone; children: ReactNode }) {
   const Icon = tone === 'ok' ? Info : AlertCircle;
   return (
-    <div className="j-alert" data-tone={tone} role="status" style={{ justifyContent: 'flex-start' }}>
-      <Icon size={15} aria-hidden="true" style={{ flexShrink: 0 }} />{children}
+    <div className="j-alert" data-tone={tone} role={tone === 'danger' ? 'alert' : 'status'} style={{
+      justifyContent: 'flex-start', lineHeight: 1.45,
+      background: tone === 'ok' ? 'transparent' : undefined,
+      color: tone === 'ok' ? 'var(--juice-soft)' : undefined,
+    }}>
+      <Icon size={15} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
+      <div style={{ minWidth: 0, overflowWrap: 'anywhere', color: 'var(--fill-on)' }}>{children}</div>
     </div>
   );
 }
@@ -707,18 +759,25 @@ export function AlertProgress({ id = 'alert-progress' }: { id?: string } = {}) {
   useJuiceAgentNode(id, 'AlertProgress', { usage, database, assets, free, tone }, { setUsage, resetQuota });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={card}>
-      <div style={between}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Storage quota</span>
-        <strong style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{usage}% used</strong>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Storage quota</span>
+        <span className="j-ai-sub">{usage}% used</span>
       </div>
-      <div className="j-ai-stack-bar" role="meter" aria-label="Storage used" aria-valuenow={usage} aria-valuemin={0} aria-valuemax={100}>
-        {segments.map(({ label, value, color }) => value > 0 && (
-          <span key={label} className="j-ai-stack-seg" style={{ width: `${value}%`, background: color }} />
-        ))}
-      </div>
-      <div style={{ ...between, ...muted }} aria-label="Storage breakdown">
-        {segments.map(({ label, value }) => <span key={label}>{label} {value}%</span>)}
+      <div className="j-ai-surface">
+        <div className="j-ai-stack-bar" role="meter" aria-label="Storage used" aria-valuenow={usage} aria-valuemin={0} aria-valuemax={100}>
+          {segments.map(({ label, value, color }) => value > 0 && (
+            <span key={label} className="j-ai-stack-seg" style={{ width: `${value}%`, background: color }} />
+          ))}
+        </div>
+        <div style={{ ...between, fontSize: 11.5, fontVariantNumeric: 'tabular-nums' }} aria-label="Storage breakdown">
+          {segments.map(({ label, value, color }) => (
+            <span key={label} style={{ ...row, gap: 4 }}>
+              <i aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+              <span>{label} {value}%</span>
+            </span>
+          ))}
+        </div>
       </div>
       <Alert tone={tone}>{QUOTA_MESSAGES[tone]}</Alert>
       <div style={between}>
@@ -793,14 +852,23 @@ export function AvatarProfile({ id = 'avatar-profile' }: { id?: string } = {}) {
   );
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={card}>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Team members</span>
+        <span className="j-ai-sub">{reviewers.length} {reviewers.length === 1 ? 'reviewer' : 'reviewers'}</span>
+      </div>
       <div className="j-avatar-group" role="group" aria-label="Team members">
         {MEMBERS.slice(0, VISIBLE_MEMBERS).map(renderAvatar)}
+        {expanded && (
+          <span id={extraId} className="j-avatar-group" role="group" aria-label="More team members">
+            {MEMBERS.slice(VISIBLE_MEMBERS).map(renderAvatar)}
+          </span>
+        )}
         <button
           type="button"
           className="j-avatar"
           style={avatarButton}
-          aria-label="Three more team members"
+          aria-label={expanded ? 'Hide additional members' : 'Three more team members'}
           aria-expanded={expanded}
           aria-controls={expanded ? extraId : undefined}
           onClick={() => {
@@ -808,15 +876,10 @@ export function AvatarProfile({ id = 'avatar-profile' }: { id?: string } = {}) {
             setExpanded(!expanded);
           }}
         >
-          +3
+          {expanded ? '−' : '+3'}
         </button>
       </div>
-      {expanded && (
-        <div id={extraId} className="j-avatar-group" role="group" aria-label="More team members">
-          {MEMBERS.slice(VISIBLE_MEMBERS).map(renderAvatar)}
-        </div>
-      )}
-      <div style={{ ...inset, display: 'grid', gap: 8 }}>
+      <div className="j-ai-surface" style={{ display: 'grid', gap: 8 }}>
         <div style={between} aria-live="polite">
           <div style={{ display: 'grid', gap: 2 }}>
             <strong style={{ fontSize: 13 }}>{member.name}</strong>
@@ -830,13 +893,13 @@ export function AvatarProfile({ id = 'avatar-profile' }: { id?: string } = {}) {
           type="button"
           className="j-btn"
           data-size="sm"
-          data-variant={reviewer ? 'secondary' : 'outline'}
+          data-variant="secondary"
           aria-pressed={reviewer}
           style={{ justifySelf: 'start' }}
           onClick={toggleReviewer}
         >
           {reviewer ? <Check size={13} aria-hidden="true" /> : <UserPlus size={13} aria-hidden="true" />}
-          Assign Reviewer
+          {reviewer ? 'Assigned reviewer' : 'Assign reviewer'}
         </button>
       </div>
     </div>
@@ -862,13 +925,17 @@ export function EmptyStateCard({ id = 'empty-state' }: { id?: string } = {}) {
   useJuiceAgentNode(id, 'EmptyStateCard', { populated, url: populated ? WEBHOOK_URL : null }, { populate, resetEmpty });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={card}>
-      <div style={{ ...inset, display: 'grid', justifyItems: populated ? 'stretch' : 'center', gap: 8, padding: 14 }}>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Webhooks</span>
+        <span className="j-ai-sub">{populated ? '1 endpoint' : '0 endpoints'}</span>
+      </div>
+      <div className="j-ai-surface" style={{ display: 'grid', justifyItems: populated ? 'stretch' : 'center', gap: 8, padding: '16px 12px' }}>
         <div role="status">
           {populated ? (
             <div style={between}>
               <span style={{ fontSize: 12, overflowWrap: 'anywhere', userSelect: 'text' }}>{WEBHOOK_URL}</span>
-              <Badge tone="ok" style={{ flexShrink: 0 }}>200 OK</Badge>
+              <Badge style={{ flexShrink: 0 }}>Configured</Badge>
             </div>
           ) : (
             <strong style={{ fontSize: 13 }}>No webhooks configured</strong>
@@ -882,7 +949,7 @@ export function EmptyStateCard({ id = 'empty-state' }: { id?: string } = {}) {
           style={{ justifySelf: populated ? 'end' : 'center' }}
           onClick={populated ? resetEmpty : populate}
         >
-          {populated ? 'Reset' : '+ Create Webhook'}
+          {populated ? 'Reset' : 'Create webhook'}
         </button>
       </div>
     </div>

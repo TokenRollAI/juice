@@ -9,8 +9,9 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
+import { useReducedMotion } from 'motion/react';
 import { clsx } from 'clsx';
-import { Calendar, Check, ChevronDown, Loader2, Minus, Plus, Search, Upload, X } from 'lucide-react';
+import { Calendar, Check, ChevronDown, Loader2, Minus, Plus, Upload, X } from 'lucide-react';
 import { useControllableState, useJuice, useJuiceAgentNode, useRovingFocus, useScrubDrag } from './behaviors.tsx';
 import { Badge, Checkbox, Kbd, RollingNumber, SegmentedControl, Switch } from './components.tsx';
 
@@ -38,6 +39,7 @@ export function Button({
   rightIcon?: ReactNode;
 }) {
   const { animate } = useJuice();
+  const reducedMotion = useReducedMotion();
 
   return (
     <button
@@ -50,16 +52,19 @@ export function Button({
       aria-busy={loading || rest['aria-busy']}
       onClick={onClick}
     >
-      {loading ? (
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 'inherit', opacity: loading ? 0 : undefined }}>
+        {leftIcon}
+        {children}
+        {rightIcon}
+      </span>
+      {loading && (
         <>
           <style href="juice-foundation-spin" precedence="default">
             {'@keyframes juice-foundation-spin { to { transform: rotate(1turn); } }'}
           </style>
-          <Loader2 size={14} aria-hidden="true" style={{ animation: animate ? 'juice-foundation-spin 0.85s linear infinite' : undefined }} />
+          <Loader2 size={14} aria-hidden="true" style={{ position: 'absolute', animation: animate && !reducedMotion ? 'juice-foundation-spin 0.85s linear infinite' : undefined }} />
         </>
-      ) : leftIcon}
-      {children}
-      {rightIcon}
+      )}
     </button>
   );
 }
@@ -87,7 +92,7 @@ export function IconButton({
       size={size}
       className={clsx('j-icon-btn', className)}
       aria-label={label}
-      style={{ width, padding: 0, ...style }}
+      style={{ width, height: width, flexShrink: 0, padding: 0, ...style }}
     >
       {children}
     </Button>
@@ -105,6 +110,16 @@ type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'def
   suffix?: ReactNode;
   clearable?: boolean;
 };
+
+function FieldSurfaceStyles() {
+  return (
+    <style href="juice-foundation-field-surface" precedence="default">{`
+      .j-fnd-card .j-input-box:not(:focus-within):not([data-invalid]) {
+        background: var(--fill-slab);
+      }
+    `}</style>
+  );
+}
 
 export function TextField({
   id,
@@ -131,10 +146,11 @@ export function TextField({
 
   return (
     <div className="j-field">
+      <FieldSurfaceStyles />
       <div className="j-field-label-row">
         <label htmlFor={inputId}>{label}</label>
       </div>
-      <div className="j-input-box" data-invalid={invalid && invalid !== 'false' ? true : undefined}>
+      <div className="j-input-box" style={{ opacity: disabled ? 0.55 : undefined }} data-invalid={invalid && invalid !== 'false' ? true : undefined}>
         {prefix}
         <input
           {...rest}
@@ -201,6 +217,7 @@ export function Select<T extends string>({
 }: SelectProps<T>) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const listRef = useRef<HTMLDivElement>(null);
   const listId = `${inputId}-options`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useControllableState<T | undefined>({
@@ -223,6 +240,17 @@ export function Select<T extends string>({
   const { onKeyDown } = useRovingFocus({ items, active: active ?? ('' as T), onSelect: setHighlighted });
   const { playSound } = useJuice();
 
+  useEffect(() => {
+    if (!expanded || active === undefined) return;
+    const list = listRef.current;
+    const option = list?.children[items.indexOf(active)];
+    if (!list || !option || list.scrollHeight <= list.clientHeight) return;
+    const bounds = list.getBoundingClientRect();
+    const item = option.getBoundingClientRect();
+    if (item.top < bounds.top) list.scrollTop += item.top - bounds.top;
+    if (item.bottom > bounds.bottom) list.scrollTop += item.bottom - bounds.bottom;
+  }, [active, items, expanded]);
+
   function close() {
     setOpen(false);
     setQuery('');
@@ -242,10 +270,10 @@ export function Select<T extends string>({
     <div className="j-field" onBlur={(event) => {
       if (expanded && !event.currentTarget.contains(event.relatedTarget)) close();
     }}>
+      <FieldSurfaceStyles />
       <div className="j-field-label-row"><label htmlFor={inputId}>{label}</label></div>
       {name && <input type="hidden" name={name} value={value ?? ''} disabled={disabled} />}
-      <div className="j-input-box">
-        {expanded && <Search size={14} aria-hidden="true" />}
+      <div className="j-input-box" style={{ opacity: disabled ? 0.55 : undefined }}>
         <input
           ref={inputRef}
           id={inputId}
@@ -300,12 +328,12 @@ export function Select<T extends string>({
             inputRef.current?.focus();
           }}
         >
-          <ChevronDown size={14} aria-hidden="true" />
+          <ChevronDown size={14} aria-hidden="true" style={{ transform: expanded ? 'rotate(180deg)' : undefined }} />
         </IconButton>
       </div>
       {expanded && (
-        <>
-          <div id={listId} role="listbox" aria-label={label} className="j-menu-list">
+        <div className="j-menu-list" style={{ background: 'var(--fill-slab)' }}>
+          <div ref={listRef} id={listId} role="listbox" aria-label={label} style={{ maxHeight: 184, overflowY: 'auto' }}>
             {filtered.map((option, index) => (
               <div
                 key={option.value}
@@ -314,6 +342,7 @@ export function Select<T extends string>({
                 aria-selected={option.value === value}
                 className="j-menu-item"
                 data-highlighted={option.value === active || undefined}
+                style={{ flexShrink: 0, minHeight: 32, height: 'auto', overflowWrap: 'anywhere' }}
                 onMouseMove={() => setHighlighted(option.value)}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(option.value)}
@@ -323,8 +352,8 @@ export function Select<T extends string>({
               </div>
             ))}
           </div>
-          {filtered.length === 0 && <div className="j-field-hint" role="status">No matching options</div>}
-        </>
+          {filtered.length === 0 && <div role="status" style={{ padding: 8, fontSize: 12, color: 'var(--juice-soft)' }}>No matching options</div>}
+        </div>
       )}
     </div>
   );
@@ -333,7 +362,7 @@ export function Select<T extends string>({
 const radioCardStyles = `
   .j-radio-card:has(> input:checked) {
     background: var(--juice-w12);
-    box-shadow: inset 0 0 0 1.5px var(--fill-on);
+    box-shadow: none;
   }
   .j-radio-card > .j-radio-dot > .j-radio-dot-inner { visibility: hidden; }
   .j-radio-card:has(> input:checked) > .j-radio-dot {
@@ -380,7 +409,7 @@ export function RadioCard({
           onChange={onChange}
           style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
         />
-        <span>{label}</span>
+        <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{label}</span>
         {children}
         <span className="j-radio-dot" aria-hidden="true">
           <span className="j-radio-dot-inner" />
@@ -436,15 +465,15 @@ export function NumberField({
   return (
     <div className="j-field-label-row">
       <span id={labelId}>{label}</span>
-      <div className="j-num-stepper" role="group" aria-labelledby={labelId}>
+      <div className="j-num-stepper" role="group" aria-labelledby={labelId} style={{ background: 'var(--juice-w12)' }}>
         {name && <input type="hidden" name={name} value={value} disabled={disabled} />}
-        <button className="j-num-btn" type="button" aria-label={`Decrease ${label}`} disabled={disabled || decrease >= value} onClick={() => change(decrease)}>
+        <button className="j-num-btn" type="button" aria-label={`Decrease ${label}`} disabled={disabled || decrease >= value} style={{ opacity: disabled || decrease >= value ? 0.4 : undefined }} onClick={() => change(decrease)}>
           <Minus size={14} aria-hidden="true" />
         </button>
-        <output className="j-num-val" aria-label={String(value)}>
+        <output className="j-num-val" aria-label={`${label}: ${value}`}>
           <span aria-hidden="true"><RollingNumber value={value} decimals={Math.min(100, decimals)} /></span>
         </output>
-        <button className="j-num-btn" type="button" aria-label={`Increase ${label}`} disabled={disabled || increase <= value} onClick={() => change(increase)}>
+        <button className="j-num-btn" type="button" aria-label={`Increase ${label}`} disabled={disabled || increase <= value} style={{ opacity: disabled || increase <= value ? 0.4 : undefined }} onClick={() => change(increase)}>
           <Plus size={14} aria-hidden="true" />
         </button>
       </div>
@@ -473,11 +502,12 @@ export function Slider({ label, value, min = 0, max = 100, step = 1, unit, onCha
     <div className="j-field">
       <div className="j-field-label-row">
         <span id={labelId}>{label}</span>
-        <span>{valueText}</span>
+        <span style={{ color: 'var(--fill-on)', fontVariantNumeric: 'tabular-nums' }}>{valueText}</span>
       </div>
       <div
         {...scrub.scrubProps}
         className="j-slider-track"
+        style={{ marginInline: 8, borderRadius: 8 }}
         aria-labelledby={labelId}
         aria-valuetext={unit ? valueText : undefined}
         ref={(element) => { scrub.trackRef.current = element; }}
@@ -493,15 +523,12 @@ export function Slider({ label, value, min = 0, max = 100, step = 1, unit, onCha
 
 type ShowcaseProps = { id?: string };
 
-const showcaseStyle = { padding: 10 };
 const rowStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: 8,
-  padding: '6px 9px',
-  borderRadius: 'var(--juice-r-inner)',
-  background: 'var(--juice-w6)',
+  minHeight: 30,
   fontSize: 12,
 } as const;
 
@@ -535,25 +562,30 @@ export function ButtonKit({ id = 'button-kit' }: ShowcaseProps = {}) {
   });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={showcaseStyle}>
-      <div role="group" aria-label="Button variant" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        {variants.map((item) => (
-          <Button key={item} variant={item} size="xs" aria-pressed={variant === item} onClick={() => setVariant(item)}>
-            {item[0]?.toUpperCase()}{item.slice(1)}
-          </Button>
-        ))}
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Deploy action</span>
+        <span className="j-ai-sub" role="status">{presses} {presses === 1 ? 'press' : 'presses'}</span>
       </div>
-      <div className="j-field-label-row">
-        <span>Button size</span>
-        <SegmentedControl options={sizeOptions} value={size} onChange={setSize} />
-      </div>
-      <div className="j-field-label-row">
-        <span>Loading</span>
-        <Switch checked={loading} onChange={setLoading} aria-label="Loading" />
-      </div>
-      <div style={rowStyle}>
-        <Button variant={variant} size={size} loading={loading} onClick={triggerPress}>Deploy</Button>
-        <span className="j-field-hint" role="status">{presses} {presses === 1 ? 'press' : 'presses'}</span>
+      <div className="j-ai-surface">
+        <div style={{ display: 'grid', placeItems: 'center', minHeight: 52 }}>
+          <Button variant={variant} size={size} loading={loading} onClick={triggerPress}>Deploy</Button>
+        </div>
+        <div role="group" aria-label="Button variant" style={{ display: 'grid', gridTemplateColumns: 'auto auto auto auto auto' }}>
+          {variants.map((item) => (
+            <Button key={item} variant={variant === item ? 'secondary' : 'ghost'} size="xs" style={{ paddingInline: 3 }} aria-pressed={variant === item} onClick={() => setVariant(item)}>
+              {item[0]?.toUpperCase()}{item.slice(1)}
+            </Button>
+          ))}
+        </div>
+        <div className="j-field-label-row">
+          <span>Button size</span>
+          <SegmentedControl options={sizeOptions} value={size} onChange={setSize} />
+        </div>
+        <label className="j-field-label-row" style={{ cursor: 'pointer', minHeight: 32 }}>
+          <span>Loading</span>
+          <Switch checked={loading} onChange={setLoading} aria-label="Loading" />
+        </label>
       </div>
     </div>
   );
@@ -574,25 +606,31 @@ export function InputFields({ id = 'input-fields' }: ShowcaseProps = {}) {
   });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={showcaseStyle} onKeyDown={(event) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        const secretInput = event.currentTarget.querySelector<HTMLInputElement>(`[id="${secretId}"]`);
-        secretInput?.focus();
-      }
-    }}>
-      <TextField label="Project Slug" value={slug} onChange={setSlug} placeholder="my-project" error={error} spellCheck={false} />
-      <TextField
-        id={secretId}
-        label="Webhook Secret"
-        type="password"
-        value={secret}
-        onChange={setSecret}
-        placeholder="whsec_…"
-        aria-keyshortcuts="Meta+K Control+K"
-        suffix={<Kbd>⌘K</Kbd>}
-        clearable
-      />
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Project credentials</span>
+        <span className="j-ai-sub">{error ? 'Check slug' : 'Project settings'}</span>
+      </div>
+      <div className="j-ai-surface" onKeyDown={(event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+          event.preventDefault();
+          const secretInput = event.currentTarget.querySelector<HTMLInputElement>(`[id="${secretId}"]`);
+          secretInput?.focus();
+        }
+      }}>
+        <TextField label="Project Slug" value={slug} onChange={setSlug} placeholder="my-project" error={error} spellCheck={false} />
+        <TextField
+          id={secretId}
+          label="Webhook Secret"
+          type="password"
+          value={secret}
+          onChange={setSecret}
+          placeholder="whsec_…"
+          aria-keyshortcuts="Meta+K Control+K"
+          suffix={<Kbd>⌘K</Kbd>}
+          clearable
+        />
+      </div>
     </div>
   );
 }
@@ -627,17 +665,23 @@ export function SelectCombobox({ id = 'select-combobox' }: ShowcaseProps = {}) {
   });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={showcaseStyle}>
-      <Select
-        label="Deployment Region"
-        options={regions}
-        value={region}
-        onChange={setRegion}
-        query={query}
-        onQueryChange={setQuery}
-        open={open}
-        onOpenChange={setOpen}
-      />
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Deployment target</span>
+        <span className="j-ai-sub">{regions.length} regions</span>
+      </div>
+      <div className="j-ai-surface">
+        <Select
+          label="Deployment Region"
+          options={regions}
+          value={region}
+          onChange={setRegion}
+          query={query}
+          onQueryChange={setQuery}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      </div>
     </div>
   );
 }
@@ -687,8 +731,12 @@ export function ChoiceCards({ id = 'choice-cards' }: ShowcaseProps = {}) {
   });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={showcaseStyle}>
-      <div className="j-field" role="radiogroup" aria-label="Deployment plan">
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Deployment plan</span>
+        <span className="j-ai-sub">{plans.find((item) => item.value === plan)?.label}</span>
+      </div>
+      <div className="j-ai-surface" role="radiogroup" aria-label="Deployment plan">
         {plans.map(({ value, label, price }) => (
           <RadioCard
             key={value}
@@ -700,20 +748,20 @@ export function ChoiceCards({ id = 'choice-cards' }: ShowcaseProps = {}) {
           />
         ))}
       </div>
-      <div className="j-menu-list" role="group" aria-label="Plan add-ons">
-        <div className="j-field-label-row" style={{ minHeight: 26, paddingInline: 5 }}>
+      <div className="j-ai-surface" role="group" aria-label="Plan add-ons">
+        <label className="j-field-label-row" style={{ minHeight: 32, paddingInline: 5, cursor: 'pointer' }}>
           <span>Select all add-ons <span className="j-field-hint">({enabledAddons.length}/{addons.length})</span></span>
           <Checkbox
             checked={allEnabled}
             aria-label="Select all add-ons"
             onChange={(checked) => setEnabledAddons(checked ? addons.map(({ key }) => key) : [])}
           />
-        </div>
+        </label>
         {addons.map(({ key, label }) => (
-          <div key={key} className="j-field-label-row" style={{ minHeight: 26, paddingInline: 5 }}>
+          <label key={key} className="j-field-label-row" style={{ minHeight: 32, paddingInline: 5, cursor: 'pointer' }}>
             <span>{label}</span>
             <Checkbox checked={enabledAddons.includes(key)} aria-label={label} onChange={(checked) => setAddon(key, checked)} />
-          </div>
+          </label>
         ))}
       </div>
     </div>
@@ -737,9 +785,15 @@ export function RangeNumberKit({ id = 'range-number-kit' }: ShowcaseProps = {}) 
   });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={showcaseStyle}>
-      <NumberField label="Max Instances" {...instanceRange} value={instances} onChange={setInstances} />
-      <Slider label="Memory Allocation" {...memoryRange} value={memory} onChange={setMemory} unit="MB" />
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Compute limits</span>
+        <span className="j-ai-sub">Per deployment</span>
+      </div>
+      <div className="j-ai-surface">
+        <NumberField label="Max Instances" {...instanceRange} value={instances} onChange={setInstances} />
+        <Slider label="Memory Allocation" {...memoryRange} value={memory} onChange={setMemory} unit="MB" />
+      </div>
     </div>
   );
 }
@@ -794,78 +848,87 @@ export function TagCalendarKit({ id = 'tag-calendar-kit' }: ShowcaseProps = {}) 
   useJuiceAgentNode(id, 'TagCalendarKit', { tags, dates }, { addTag, removeTag, selectDate });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={showcaseStyle}>
-      <div role="group" aria-label="Tags" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5 }}>
-        {tags.map((tag) => (
-          <Badge key={tag} style={{ height: 'auto', minHeight: 24, maxWidth: '100%', paddingRight: 3, overflowWrap: 'anywhere' }}>
-            {tag}
-            <IconButton label={`Remove ${tag} tag`} size="xs" variant="ghost" onClick={() => {
-              removeTag(tag);
-              (editing ? tagInputRef.current : addButtonRef.current)?.focus();
-            }} style={{ width: 20, height: 20, flexShrink: 0 }}>
-              <X size={11} aria-hidden="true" />
-            </IconButton>
-          </Badge>
-        ))}
-        <Button
-          ref={addButtonRef}
-          variant="outline"
-          size="xs"
-          aria-expanded={editing}
-          aria-controls={editing ? tagInputId : undefined}
-          onClick={() => { if (editing) finishEditing(); else setEditing(true); }}
-          leftIcon={<Plus size={12} aria-hidden="true" />}
-        >
-          Add tag
-        </Button>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Release filters</span>
+        <span className="j-ai-sub">{tags.length} {tags.length === 1 ? 'tag' : 'tags'}</span>
       </div>
-      {editing && (
-        <div className="j-input-box" onKeyDown={(event) => {
-          if (event.nativeEvent.isComposing) return;
-          if (event.key === 'Escape' || event.key === 'Enter') event.preventDefault();
-          if (event.key === 'Escape') finishEditing();
-          if (event.key === 'Enter' && canAddTag) {
-            addTag(draftTag);
-            finishEditing();
-          }
-        }}>
-          <input
-            id={tagInputId}
-            ref={tagInputRef}
-            className="j-input-el"
-            aria-label="New tag"
-            placeholder="New tag"
-            value={draftTag}
-            onChange={(event) => setDraftTag(event.currentTarget.value)}
-          />
-          <Button size="xs" disabled={!canAddTag} onClick={() => {
-            addTag(draftTag);
-            finishEditing();
-          }}>Add</Button>
+      <div className="j-ai-surface">
+        <div role="group" aria-label="Tags" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5 }}>
+          {tags.map((tag) => (
+            <Badge key={tag} style={{ height: 'auto', minHeight: 26, maxWidth: '100%', boxSizing: 'border-box', paddingRight: 2, background: 'var(--fill-slab)' }}>
+              <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{tag}</span>
+              <IconButton label={`Remove ${tag} tag`} size="xs" variant="ghost" onClick={() => {
+                removeTag(tag);
+                (editing ? tagInputRef.current : addButtonRef.current)?.focus();
+              }}>
+                <X size={11} aria-hidden="true" />
+              </IconButton>
+            </Badge>
+          ))}
+          <Button
+            ref={addButtonRef}
+            variant="outline"
+            size="xs"
+            aria-expanded={editing}
+            aria-controls={editing ? tagInputId : undefined}
+            onClick={() => { if (editing) finishEditing(); else setEditing(true); }}
+            leftIcon={<Plus size={12} aria-hidden="true" />}
+          >
+            Add tag
+          </Button>
         </div>
-      )}
-      <div className="j-field-label-row">
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Calendar size={13} aria-hidden="true" /> Date range</span>
-        <output>{dateLabel}</output>
+        {editing && (
+          <div className="j-input-box" onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return;
+            if (event.key === 'Escape' || event.key === 'Enter') event.preventDefault();
+            if (event.key === 'Escape') finishEditing();
+            if (event.key === 'Enter' && canAddTag) {
+              addTag(draftTag);
+              finishEditing();
+            }
+          }}>
+            <FieldSurfaceStyles />
+            <input
+              id={tagInputId}
+              ref={tagInputRef}
+              className="j-input-el"
+              aria-label="New tag"
+              placeholder="New tag"
+              value={draftTag}
+              onChange={(event) => setDraftTag(event.currentTarget.value)}
+            />
+            <Button size="xs" disabled={!canAddTag} onClick={() => {
+              addTag(draftTag);
+              finishEditing();
+            }}>Add</Button>
+          </div>
+        )}
       </div>
-      <div role="group" aria-label="November date range" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 3 }}>
-        {days.map((day) => {
-          const endpoint = day === dates.start || day === dates.end;
-          const included = day >= dates.start && day <= dates.end;
-          return (
-            <Button
-              key={day}
-              size="sm"
-              variant={endpoint ? 'primary' : included ? 'secondary' : 'ghost'}
-              aria-label={`November ${day}`}
-              aria-pressed={included}
-              onClick={() => selectDate(day)}
-              style={{ padding: 0 }}
-            >
-              {day}
-            </Button>
-          );
-        })}
+      <div className="j-ai-surface">
+        <div className="j-field-label-row">
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Calendar size={13} aria-hidden="true" /> {dates.pickingEnd ? 'Pick end date' : 'Date range'}</span>
+          <output>{dateLabel}</output>
+        </div>
+        <div role="group" aria-label="November date range" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
+          {days.map((day) => {
+            const endpoint = day === dates.start || day === dates.end;
+            const included = day >= dates.start && day <= dates.end;
+            return (
+              <Button
+                key={day}
+                size="sm"
+                variant={endpoint ? 'primary' : included ? 'secondary' : 'ghost'}
+                aria-label={`November ${day}`}
+                aria-pressed={included}
+                onClick={() => selectDate(day)}
+                style={{ padding: 0, borderRadius: included && !endpoint ? 0 : undefined, fontVariantNumeric: 'tabular-nums' }}
+              >
+                {day}
+              </Button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -904,17 +967,19 @@ export function SettingsRows({ id = 'settings-rows' }: ShowcaseProps = {}) {
   });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={showcaseStyle}>
-      <div className="j-field-label-row">
-        <span>Deployment settings</span>
-        <span className="j-field-hint" role="status">{activeCount}/{settings.length} active</span>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Deployment settings</span>
+        <span className="j-ai-sub" role="status">{activeCount}/{settings.length} active</span>
       </div>
-      {settings.map(({ key, label }) => (
-        <div key={key} style={rowStyle}>
-          <span>{label}</span>
-          <Switch checked={enabled[key]} aria-label={label} onChange={(checked) => setEnabled((current) => ({ ...current, [key]: checked }))} />
-        </div>
-      ))}
+      <div className="j-ai-surface">
+        {settings.map(({ key, label }) => (
+          <label key={key} style={{ ...rowStyle, minHeight: 34, cursor: 'pointer' }}>
+            <span>{label}</span>
+            <Switch checked={enabled[key]} aria-label={label} onChange={(checked) => setEnabled((current) => ({ ...current, [key]: checked }))} />
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
@@ -978,7 +1043,11 @@ export function FileDropzone({ id = 'file-dropzone' }: ShowcaseProps = {}) {
   useJuiceAgentNode(id, 'FileDropzone', { status, files, progress: status === 'idle' ? 0 : progress }, { simulateUpload, clearFiles });
 
   return (
-    <div id={id} className="j-slab j-fnd-card" style={showcaseStyle}>
+    <div id={id} className="j-slab j-fnd-card">
+      <div className="j-ai-header">
+        <span className="j-ai-title">Project assets</span>
+        <span className="j-ai-sub">{files.length} {files.length === 1 ? 'file' : 'files'}</span>
+      </div>
       <input
         ref={fileInput}
         type="file"
@@ -990,7 +1059,8 @@ export function FileDropzone({ id = 'file-dropzone' }: ShowcaseProps = {}) {
         }}
       />
       <div
-        style={{ ...rowStyle, flexDirection: 'column', padding: 10, background: dragging ? 'var(--juice-w20)' : 'var(--juice-w6)' }}
+        className="j-ai-surface"
+        style={{ alignItems: 'center', justifyContent: 'center', minHeight: 84, background: dragging ? 'var(--juice-w20)' : undefined }}
         onDragEnter={(event) => {
           if (!event.dataTransfer.types.includes('Files')) return;
           event.preventDefault();
@@ -1013,7 +1083,7 @@ export function FileDropzone({ id = 'file-dropzone' }: ShowcaseProps = {}) {
           acceptFiles(event.dataTransfer.files);
         }}
       >
-        <span>Drop assets here</span>
+        <span style={{ fontSize: 13, fontWeight: 500 }}>{dragging ? 'Release to add files' : 'Drop assets here'}</span>
         <Button variant="secondary" size="sm" leftIcon={<Upload size={14} aria-hidden="true" />} onClick={() => fileInput.current?.click()}>
           Choose files
         </Button>
@@ -1037,7 +1107,7 @@ export function FileDropzone({ id = 'file-dropzone' }: ShowcaseProps = {}) {
         </div>
       )}
       {files.map((file) => (
-        <div key={file.id} style={rowStyle}>
+        <div key={file.id} style={{ ...rowStyle, paddingInline: 4 }}>
           <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{file.name} <span className="j-field-hint">· {file.size}</span></span>
           <IconButton
             label={`Remove ${file.name}`}
@@ -1051,7 +1121,7 @@ export function FileDropzone({ id = 'file-dropzone' }: ShowcaseProps = {}) {
         </div>
       ))}
       <div className="j-field-label-row">
-        <Button variant="outline" size="xs" disabled={uploading} onClick={simulateUpload}>Simulate upload</Button>
+        <Button variant="ghost" size="xs" disabled={uploading} onClick={simulateUpload}>Simulate upload</Button>
         {files.length > 0 && <Button variant="ghost" size="xs" onClick={clearFiles}>Clear files</Button>}
       </div>
     </div>
