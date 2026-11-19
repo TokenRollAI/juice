@@ -2,7 +2,7 @@
 
 **Juice UI** is a standalone, domain-agnostic, high-craft UI & micro-interaction system by **TokenRollAI** with **86 live blocks**, **182 exported primitives**, concentric `color-mix` tokens, and a 3KB zero-asset Web Audio synth across React 18/19 and Vue 3.
 
-- **Official Website & Live 86-Block Playground**: https://juice-ui.pages.dev
+- **Official Website & Live 86-Block Playground**: https://juice.tokenroll.ai
 - **React Package**: `@tokenroll/juice` (`packages/juice`)
 - **Vue 3 Package**: `@tokenroll/juice-vue` (`packages/vue`)
 - **CLI Registry**: `npx @tokenroll/juice init` / `npx @tokenroll/juice add <name>`

@@ -4,7 +4,7 @@
   "description": "Tactile, behavior-complete React UI components, Radix & Base UI primitives, AI agent workflows, concentric color-mix tokens, and procedural Web Audio sounds.",
   "license": "MIT",
   "type": "module",
-  "homepage": "https://juice-ui.pages.dev",
+  "homepage": "https://juice.tokenroll.ai",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/TokenRollAI/juice.git",

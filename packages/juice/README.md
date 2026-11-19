@@ -2,7 +2,7 @@
 
 Tactile, behavior-complete React UI components, Radix & Base UI primitives, portal/studio workbenches, deep AI agent workflows, concentric `color-mix` tokens, and a 3KB zero-asset Web Audio procedural sound synth.
 
-- **Website & Live 86-Block Playground**: https://juice-ui.pages.dev
+- **Website & Live 86-Block Playground**: https://juice.tokenroll.ai
 - **Repository**: https://github.com/TokenRollAI/juice
 - **Agent Skill**: `npx skills add TokenRollAI/juice`
 
