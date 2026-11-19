@@ -43,6 +43,25 @@ export type BlockSummaryItem = {
   sounds: JuiceSoundName[];
 };
 
+export type InstallTrack = 'npm' | 'cli' | 'skill';
+
+const INSTALL_TRACKS = [
+  { value: 'npm', label: 'npm' },
+  { value: 'cli', label: 'CLI' },
+  { value: 'skill', label: 'Skill' },
+] as const;
+
+const INSTALL_COMMANDS = {
+  npm: 'pnpm add @tokenroll/juice lucide-react',
+  cli: 'npx @tokenroll/juice init',
+  skill: 'npx skills add TokenRollAI/juice',
+};
+
+type InstallTrackProps = {
+  track: InstallTrack;
+  onTrackChange: (track: InstallTrack) => void;
+};
+
 type PkgManager = 'pnpm' | 'npm' | 'bun';
 type ApiLayerId = 'all' | 'foundation' | 'base' | 'studio' | 'media' | 'ai' | 'tactile';
 
@@ -218,35 +237,21 @@ const API_LAYERS: ApiLayerSpec[] = [
   },
 ];
 
-export function GetStartedView({ onOpenPlayground }: { onOpenPlayground: () => void }) {
+export function GetStartedView({
+  track,
+  onTrackChange,
+  onOpenPlayground,
+}: InstallTrackProps & { onOpenPlayground: () => void }) {
   const [pkgMgr, setPkgMgr] = useState<PkgManager>('pnpm');
   const [framework, setFramework] = useState<'react' | 'vue'>('react');
   const [liveAnimate, setLiveAnimate] = useState(true);
-
-  const installCmd = useMemo(() => {
-    const pkg = framework === 'react' ? '@tokenroll/juice lucide-react' : '@tokenroll/juice-vue';
-    if (pkgMgr === 'npm') return `npm install ${pkg}`;
-    if (pkgMgr === 'bun') return `bun add ${pkg}`;
-    return `pnpm add ${pkg}`;
-  }, [pkgMgr, framework]);
+  const pkg = framework === 'react' ? '@tokenroll/juice lucide-react' : '@tokenroll/juice-vue';
+  const installCmd = `${pkgMgr} ${pkgMgr === 'npm' ? 'install' : 'add'} ${pkg}`;
 
   const reactUsageCode = `import '@tokenroll/juice/styles.css';
-import {
-  JuiceProvider,
-  StateButton,
-  ScrubPanel,
-  ToolApprovalGate,
-} from '@tokenroll/juice';
-
-export function App() {
-  return (
-    <JuiceProvider defaultTheme="light" defaultFill="slab" defaultSound={true}>
-      <StateButton id="deploy-action" amount={420} />
-      <ScrubPanel id="physics-panel" />
-      <ToolApprovalGate id="shell-gate" />
-    </JuiceProvider>
-  );
-}`;
+import { Button, FloatingPopover } from '@tokenroll/juice/primitives';
+export const Actions = (props: Omit<React.ComponentProps<typeof FloatingPopover>, 'children'>) =>
+  <FloatingPopover {...props}><Button onClick={props.onClose}>Done</Button></FloatingPopover>;`;
 
   const vueUsageCode = `<script setup lang="ts">
 import '@tokenroll/juice-vue/styles.css';
@@ -295,65 +300,84 @@ window.__juiceAgent.act('docs-demo-scrub', 'setTension', 84);
         </Button>
       </div>
 
-      {/* Install Paths Grid */}
-      <div className="site-two-col">
-        <section className="j-slab site-panel">
-          <div className="site-panel-head">
-            <div>
-              <div className="site-panel-title">1. Install Package</div>
-              <div className="site-panel-sub">Tree-shakeable ESM + TypeScript declarations + single bundled CSS</div>
+      <section className="j-slab site-panel" aria-label="Installation">
+        <div className="site-panel-head">
+          <div className="site-panel-title">Install Juice UI</div>
+          <SegmentedControl options={INSTALL_TRACKS} value={track} onChange={onTrackChange} />
+        </div>
+        {track === 'npm' && (
+          <>
+            <div className="site-panel-head">
+              <div>
+                <div className="site-panel-title">Direct npm import</div>
+                <div className="site-panel-sub">Recommended for apps. Update components through your package manager.</div>
+              </div>
+              <div className="site-install-controls">
+                <SegmentedControl<'react' | 'vue'>
+                  options={[{ value: 'react', label: 'React' }, { value: 'vue', label: 'Vue 3' }]}
+                  value={framework}
+                  onChange={setFramework}
+                />
+                <SegmentedControl<PkgManager>
+                  options={[{ value: 'pnpm', label: 'pnpm' }, { value: 'npm', label: 'npm' }, { value: 'bun', label: 'bun' }]}
+                  value={pkgMgr}
+                  onChange={setPkgMgr}
+                />
+              </div>
             </div>
-            <SegmentedControl
-              options={[
-                { value: 'react', label: 'React' },
-                { value: 'vue', label: 'Vue 3' },
-              ]}
-              value={framework}
-              onChange={(v) => setFramework(v as 'react' | 'vue')}
+            <CopySnippet code={installCmd} label="Install package" />
+            {framework === 'react' && (
+              <dl className="site-package-paths">
+                <dt>@tokenroll/juice/primitives</dt>
+                <dd>Production components with no demo data, including Button, TextField, Select, FloatingPopover, ScrollArea and CheckboxGroup.</dd>
+                <dt>@tokenroll/juice/blocks</dt>
+                <dd>86 interactive blocks, including SlashMentionComposer, ToolApprovalGate, GroundedAnswer and MediaTransportDock.</dd>
+                <dt>@tokenroll/juice/core</dt>
+                <dd>Use the Web Audio synth and the window.__juiceAgent bridge without React.</dd>
+              </dl>
+            )}
+            <CopySnippet
+              code={framework === 'react' ? reactUsageCode : vueUsageCode}
+              label={framework === 'react' ? 'Use primitives without a provider' : 'Vue 3 example'}
             />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <SegmentedControl
-              options={[
-                { value: 'pnpm', label: 'pnpm' },
-                { value: 'npm', label: 'npm' },
-                { value: 'bun', label: 'bun' },
-              ]}
-              value={pkgMgr}
-              onChange={(v) => setPkgMgr(v as PkgManager)}
-            />
-            <Badge tone="neutral">{framework === 'react' ? '182 exports · 0 assets' : 'Vue 3 Composition API'}</Badge>
-          </div>
-
-          <CopySnippet code={installCmd} label="Install command" />
-        </section>
-
-        <section className="j-slab site-panel">
-          <div className="site-panel-head">
-            <div>
-              <div className="site-panel-title">2. Install AI Agent Skill</div>
-              <div className="site-panel-sub">Teach Antigravity, Claude Code, and Codex Juice&apos;s exact tokens &amp; catalog</div>
-            </div>
-            <Badge tone="ok">SKILL.md Ready</Badge>
-          </div>
-
-          <p className="site-body-copy">
-            Installing the Juice skill gives coding agents the full 86-block decision matrix, concentric <code>color-mix</code>{' '}
-            invariants, and <code>window.__juiceAgent</code> verification protocol automatically.
-          </p>
-
-          <CopySnippet code="npx skills add TokenRollAI/juice" label="Install Agent Skill" />
-        </section>
-      </div>
+            {framework === 'react' && (
+              <p className="site-body-copy">
+                Add <code>JuiceProvider</code> when you want to share theme and fill settings or freeze motion with <code>{'animate={false}'}</code>.
+              </p>
+            )}
+          </>
+        )}
+        {track === 'cli' && (
+          <>
+            <div className="site-panel-title">CLI source copy</div>
+            <p className="site-body-copy">
+              Own and edit the source in your app. Initialize once to copy <code>juice.css</code>, <code>sound.ts</code>,{' '}
+              <code>bridge.ts</code> and <code>behaviors.tsx</code> into <code>src/components/juice/</code>.
+            </p>
+            <CopySnippet code={INSTALL_COMMANDS.cli} label="Initialize Juice" />
+            <CopySnippet code="npx @tokenroll/juice add tool-approval-gate slash-mention-composer"
+              label="Copy blocks and their local dependencies" />
+            <CopySnippet code="npx @tokenroll/juice list" label="Browse 10 modules, 86 blocks and 182 exports" />
+          </>
+        )}
+        {track === 'skill' && (
+          <>
+            <div className="site-panel-title">AI agent skill</div>
+            <p className="site-body-copy">
+              Give your coding agent the block catalog, theme tokens and instructions for verifying interactions with the Agent Bridge.
+            </p>
+            <CopySnippet code={INSTALL_COMMANDS.skill} label="Install agent skill" />
+          </>
+        )}
+      </section>
 
       {/* Live Code + Interactive Sandbox Side-by-Side */}
       <section className="j-slab site-panel">
         <div className="site-panel-head">
           <div>
-            <div className="site-panel-title">3. Wrap Once &amp; Compose Anywhere</div>
+            <div className="site-panel-title">Try shared motion settings</div>
             <div className="site-panel-sub">
-              Import the bundled stylesheet once, wrap your app in <code>&lt;JuiceProvider&gt;</code>, and compose any primitive.
+              Toggle motion for both blocks with one provider.
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -364,13 +388,13 @@ window.__juiceAgent.act('docs-demo-scrub', 'setTension', 84);
 
         <div className="site-two-col" style={{ alignItems: 'stretch' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <pre className="bench-code-box" style={{ flex: 1 }}>
-              {framework === 'react' ? reactUsageCode : vueUsageCode}
-            </pre>
-            <CopySnippet
-              code={framework === 'react' ? "import '@tokenroll/juice/styles.css';" : "import '@tokenroll/juice-vue/styles.css';"}
-              label="Stylesheet import"
-            />
+            <pre className="bench-code-box" style={{ flex: 1 }}>{`import { JuiceProvider } from '@tokenroll/juice/primitives';
+import { StateButton, ScrubPanel } from '@tokenroll/juice/blocks';
+
+<JuiceProvider animate={${liveAnimate}}>
+  <StateButton id="docs-demo-btn" amount={420} />
+  <ScrubPanel id="docs-demo-scrub" />
+</JuiceProvider>`}</pre>
           </div>
 
           <div className="site-live-stage">
@@ -389,7 +413,7 @@ window.__juiceAgent.act('docs-demo-scrub', 'setTension', 84);
         <section className="j-slab site-panel">
           <div className="site-panel-head">
             <div>
-              <div className="site-panel-title">4. Programmatic Agent Bridge &amp; Joplo Frames</div>
+              <div className="site-panel-title">Programmatic Agent Bridge &amp; Joplo Frames</div>
               <div className="site-panel-sub">Drive state deterministically from AI agents or storyboard timelines</div>
             </div>
             <Badge tone="neutral">window.__juiceAgent</Badge>
@@ -424,7 +448,7 @@ window.__juiceAgent.act('docs-demo-scrub', 'setTension', 84);
         <section className="j-slab site-panel">
           <div className="site-panel-head">
             <div>
-              <div className="site-panel-title">5. Two-Variable Theme &amp; Joplo Token Mapping</div>
+              <div className="site-panel-title">Two-Variable Theme &amp; Joplo Token Mapping</div>
               <div className="site-panel-sub">Override --fill-on and --fill-slab; the 6-step ramp recalibrates live</div>
             </div>
             <Badge tone="neutral">color-mix(in srgb)</Badge>
@@ -938,8 +962,10 @@ export function QuickJumpModal({
 
 export function QuickInstallRibbon({
   blockCount,
+  track,
+  onTrackChange,
   onOpenDocs,
-}: {
+}: InstallTrackProps & {
   blockCount: number;
   onOpenDocs: () => void;
 }) {
@@ -948,28 +974,26 @@ export function QuickInstallRibbon({
       <div className="site-ribbon-metrics">
         <div className="site-metric-pill">
           <RollingNumber value={blockCount} style={{ fontSize: 18 }} />
-          <span>Interactive Blocks</span>
+          <span>Blocks</span>
         </div>
         <div className="site-metric-pill">
           <RollingNumber value={182} style={{ fontSize: 18 }} />
-          <span>Exported Primitives</span>
+          <span>Primitives</span>
         </div>
         <div className="site-metric-pill">
           <RollingNumber value={12} style={{ fontSize: 18 }} />
-          <span>Web Audio Sounds</span>
+          <span>Sounds</span>
         </div>
         <div className="site-metric-pill">
           <RollingNumber value={0} style={{ fontSize: 18 }} />
-          <span>External Assets</span>
+          <span>Assets</span>
         </div>
       </div>
 
       <div className="site-ribbon-installs">
+        <SegmentedControl options={INSTALL_TRACKS} value={track} onChange={onTrackChange} />
         <div className="site-ribbon-snippet">
-          <CopySnippet code="pnpm add @tokenroll/juice lucide-react" label="Install React package" />
-        </div>
-        <div className="site-ribbon-snippet">
-          <CopySnippet code="npx skills add TokenRollAI/juice" label="Install Agent Skill" />
+          <CopySnippet code={INSTALL_COMMANDS[track]} label="Quick install" />
         </div>
         <Button size="sm" variant="secondary" leftIcon={<Terminal size={13} />} onClick={onOpenDocs}>
           Usage Guide

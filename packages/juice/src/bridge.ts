@@ -16,34 +16,43 @@ export type JuiceAgentBridge = {
 
 const agentRegistry = new Map<string, JuiceAgentNodeEntry>();
 
-if (typeof window !== 'undefined') {
-  const bridge: JuiceAgentBridge = {
-    snapshot() {
-      const out: Record<string, { type: string; state: Record<string, unknown> }> = {};
-      for (const [id, entry] of agentRegistry.entries()) {
-        out[id] = { type: entry.type, state: entry.getState() };
+const bridge: JuiceAgentBridge = {
+  snapshot() {
+    const out: Record<string, { type: string; state: Record<string, unknown> }> = {};
+    for (const [id, entry] of agentRegistry.entries()) {
+      out[id] = { type: entry.type, state: entry.getState() };
+    }
+    return out;
+  },
+  query(typeOrId?: string) {
+    const list: Array<{ id: string; type: string; state: Record<string, unknown> }> = [];
+    for (const [id, entry] of agentRegistry.entries()) {
+      if (!typeOrId || id === typeOrId || entry.type.toLowerCase().includes(typeOrId.toLowerCase())) {
+        list.push({ id, type: entry.type, state: entry.getState() });
       }
-      return out;
-    },
-    query(typeOrId?: string) {
-      const list: Array<{ id: string; type: string; state: Record<string, unknown> }> = [];
-      for (const [id, entry] of agentRegistry.entries()) {
-        if (!typeOrId || id === typeOrId || entry.type.toLowerCase().includes(typeOrId.toLowerCase())) {
-          list.push({ id, type: entry.type, state: entry.getState() });
-        }
-      }
-      return list;
-    },
-    act(id: string, action: string, payload?: unknown) {
-      const entry = agentRegistry.get(id);
-      if (!entry) return false;
-      return entry.act(action, payload);
-    },
-  };
-  (window as unknown as { __juiceAgent?: JuiceAgentBridge }).__juiceAgent = bridge;
+    }
+    return list;
+  },
+  act(id: string, action: string, payload?: unknown) {
+    const entry = agentRegistry.get(id);
+    if (!entry) return false;
+    return entry.act(action, payload);
+  },
+};
+
+export function ensureJuiceAgentBridge(): JuiceAgentBridge | null {
+  if (typeof window === 'undefined') return null;
+  const host = window as unknown as { __juiceAgent?: JuiceAgentBridge };
+  if (!host.__juiceAgent) {
+    host.__juiceAgent = bridge;
+  }
+  return host.__juiceAgent;
 }
 
+ensureJuiceAgentBridge();
+
 export function registerJuiceAgentNode(entry: JuiceAgentNodeEntry): () => void {
+  ensureJuiceAgentBridge();
   agentRegistry.set(entry.id, entry);
   return () => {
     agentRegistry.delete(entry.id);

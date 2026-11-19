@@ -100,7 +100,6 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  flex-wrap: wrap;
 }
 
 .site-ribbon-metrics {
@@ -118,15 +117,46 @@ body {
   color: var(--juice-mute);
 }
 
-.site-ribbon-installs {
+.site-ribbon-installs,
+.site-install-controls {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .site-ribbon-snippet {
-  min-width: 245px;
+  width: 34ch;
+  max-width: 100%;
+}
+
+.site-package-paths {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.site-package-paths dt {
+  font-family: var(--juice-font-mono);
+}
+
+.site-package-paths dd {
+  margin: 0;
+  color: var(--juice-mute);
+}
+
+.site-inspector-code {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.site-inspector-code .j-copy-snippet {
+  width: 100%;
+  min-width: 0;
 }
 
 /* Sound Synth Audition Strip (Inline Expandable Bar) */
@@ -601,6 +631,12 @@ body {
 }
 
 @media (max-width: 960px) {
+  .site-ribbon,
+  .site-ribbon-installs,
+  .site-install-controls {
+    flex-wrap: wrap;
+  }
+
   .bench-workspace {
     flex-direction: column;
   }
@@ -611,5 +647,26 @@ body {
   .site-two-col,
   .site-surface-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+
+@media (max-width: 600px) {
+  .site-ribbon-installs {
+    width: 100%;
+  }
+
+  .site-ribbon-snippet {
+    order: 1;
+    width: 100%;
+  }
+
+  .site-package-paths {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .site-package-paths dd + dt {
+    margin-top: 6px;
   }
 }

@@ -1,29 +1,37 @@
 # @tokenroll/juice
 
-Tactile, behavior-complete React UI components, Radix & Base UI primitives, portal/studio workbenches, deep AI agent components, concentric `color-mix` tokens, and a 3KB zero-asset Web Audio procedural sound synth.
+Tactile, behavior-complete React UI components, Radix & Base UI primitives, portal/studio workbenches, deep AI agent workflows, concentric `color-mix` tokens, and a 3KB zero-asset Web Audio procedural sound synth.
 
-- **Website & Interactive Playground**: https://juice.tokenroll.ai
+- **Website & Live 86-Block Playground**: https://juice-ui.pages.dev
 - **Repository**: https://github.com/TokenRollAI/juice
 - **Agent Skill**: `npx skills add TokenRollAI/juice`
 
-## Install
+## Option 1 · Direct npm Import (No `<JuiceProvider>` Required)
 
 ```bash
 pnpm add @tokenroll/juice lucide-react
 ```
 
-## Quickstart
-
 ```tsx
 import '@tokenroll/juice/styles.css';
-import { JuiceProvider, StateButton, SlashMentionComposer } from '@tokenroll/juice';
+import { Button, FloatingPopover } from '@tokenroll/juice/primitives';
+import { SlashMentionComposer, ToolApprovalGate } from '@tokenroll/juice/blocks';
 
 export function App() {
   return (
-    <JuiceProvider defaultTheme="light" defaultFill="slab" defaultSound={true}>
-      <StateButton id="send-action" amount={420} />
+    <>
+      <Button variant="primary">Deploy</Button>
+      <ToolApprovalGate id="shell-gate" />
       <SlashMentionComposer id="agent-input" />
-    </JuiceProvider>
+    </>
   );
 }
+```
+
+## Option 2 · CLI Source Copy (shadcn-style)
+
+```bash
+npx @tokenroll/juice list
+npx @tokenroll/juice init --dir src/components/juice
+npx @tokenroll/juice add tool-approval-gate floating-popover
 ```

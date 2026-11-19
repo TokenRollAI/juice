@@ -19,6 +19,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -31,6 +32,7 @@ import {
   type JuiceSoundName,
 } from './sound.ts';
 import {
+  ensureJuiceAgentBridge,
   registerJuiceAgentNode,
   unregisterJuiceAgentNode,
   type JuiceAgentBridge,
@@ -40,6 +42,7 @@ import {
 } from './bridge.ts';
 
 export {
+  ensureJuiceAgentBridge,
   registerJuiceAgentNode,
   unregisterJuiceAgentNode,
   type JuiceAgentBridge,
@@ -148,20 +151,101 @@ export function JuiceProvider({
   );
 }
 
+type FallbackJuiceSnapshot = {
+  theme: JuiceTheme;
+  fill: JuiceFill;
+  sound: boolean;
+  animate: boolean;
+};
+
+let fallbackJuiceState: FallbackJuiceSnapshot = {
+  theme: 'light',
+  fill: 'slab',
+  sound: isJuiceSoundEnabled(),
+  animate: true,
+};
+
+const fallbackJuiceListeners = new Set<() => void>();
+
+function notifyFallbackJuice() {
+  for (const listener of fallbackJuiceListeners) listener();
+}
+
+function updateFallbackJuice(patch: Partial<FallbackJuiceSnapshot>) {
+  const next: FallbackJuiceSnapshot = { ...fallbackJuiceState, ...patch };
+  if (
+    next.theme === fallbackJuiceState.theme &&
+    next.fill === fallbackJuiceState.fill &&
+    next.sound === fallbackJuiceState.sound &&
+    next.animate === fallbackJuiceState.animate
+  ) {
+    return;
+  }
+  fallbackJuiceState = next;
+  notifyFallbackJuice();
+}
+
+function subscribeFallbackJuice(listener: () => void): () => void {
+  fallbackJuiceListeners.add(listener);
+  const unsubSound = subscribeJuiceSound(() => {
+    const enabled = isJuiceSoundEnabled();
+    if (fallbackJuiceState.sound !== enabled) {
+      fallbackJuiceState = { ...fallbackJuiceState, sound: enabled };
+      listener();
+    }
+  });
+  return () => {
+    fallbackJuiceListeners.delete(listener);
+    unsubSound();
+  };
+}
+
+function getFallbackJuiceSnapshot(): FallbackJuiceSnapshot {
+  const currentSound = isJuiceSoundEnabled();
+  if (fallbackJuiceState.sound !== currentSound) {
+    fallbackJuiceState = { ...fallbackJuiceState, sound: currentSound };
+  }
+  return fallbackJuiceState;
+}
+
+const fallbackSetTheme = (next: JuiceTheme) => updateFallbackJuice({ theme: next });
+const fallbackSetFill = (next: JuiceFill) => updateFallbackJuice({ fill: next });
+const fallbackSetSound = (enabled: boolean) => {
+  setJuiceSoundEnabled(enabled);
+  updateFallbackJuice({ sound: enabled });
+};
+const fallbackSetAnimate = (next: boolean) => updateFallbackJuice({ animate: next });
+const fallbackPlaySound = (name: JuiceSoundName) => {
+  if (fallbackJuiceState.sound && isJuiceSoundEnabled()) {
+    playJuiceSound(name);
+  }
+};
+
 export function useJuice(): JuiceConfig {
   const ctx = useContext(JuiceContext);
-  if (ctx) return ctx;
-  return {
-    theme: 'light',
-    fill: 'slab',
-    sound: isJuiceSoundEnabled(),
-    animate: true,
-    setTheme: () => {},
-    setFill: () => {},
-    setSound: setJuiceSoundEnabled,
-    setAnimate: () => {},
-    playSound: (name) => playJuiceSound(name),
-  };
+  const fallback = useSyncExternalStore(
+    subscribeFallbackJuice,
+    getFallbackJuiceSnapshot,
+    getFallbackJuiceSnapshot,
+  );
+
+  // Ensure window.__juiceAgent is available even when used without <JuiceProvider>
+  ensureJuiceAgentBridge();
+
+  return useMemo<JuiceConfig>(() => {
+    if (ctx) return ctx;
+    return {
+      theme: fallback.theme,
+      fill: fallback.fill,
+      sound: fallback.sound,
+      animate: fallback.animate,
+      setTheme: fallbackSetTheme,
+      setFill: fallbackSetFill,
+      setSound: fallbackSetSound,
+      setAnimate: fallbackSetAnimate,
+      playSound: fallbackPlaySound,
+    };
+  }, [ctx, fallback]);
 }
 
 // ---------------------------------------------------------------------------

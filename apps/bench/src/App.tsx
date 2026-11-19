@@ -24,6 +24,7 @@ import {
   Composer,
   ContextBudgetMeter,
   ContextMenuKit,
+  CopySnippet,
   CopySnippetFlash,
   DataGrid,
   DialogModal,
@@ -100,16 +101,11 @@ import {
 } from '@tokenroll/juice';
 import {
   ArrowUpRight,
-  Check,
-  Code2,
-  Copy,
-  Layers,
   Moon,
   Play,
   Search,
   Sliders,
   Sun,
-  Terminal,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -119,13 +115,18 @@ import {
   QuickInstallRibbon,
   QuickJumpModal,
   TokensSoundLabView,
+  type InstallTrack,
   type SiteSection,
 } from './site-views.tsx';
 
 type GestureCategory = 'all' | 'foundation' | 'ai' | 'press' | 'drag' | 'hover' | 'workspace';
 
+type CodeTab = 'react' | 'vue' | 'cli' | 'joplo';
+
 type BlockSpec = {
   id: string;
+  demoId?: string;
+  source: { symbol: keyof typeof import('@tokenroll/juice'); module: string };
   name: string;
   gesture: Exclude<GestureCategory, 'all'>;
   gestureLabel: string;
@@ -170,6 +171,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   // ═══════════════════════════════════════════════════════════════════════
   {
     id: 'button-kit',
+    source: { symbol: 'ButtonKit', module: 'components-foundation-forms' },
     name: 'ButtonKit',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Buttons & Variants',
@@ -187,6 +189,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'input-fields',
+    source: { symbol: 'InputFields', module: 'components-foundation-forms' },
     name: 'InputFields',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Text & Secret Inputs',
@@ -203,6 +206,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'select-combobox',
+    source: { symbol: 'SelectCombobox', module: 'components-foundation-forms' },
     name: 'SelectCombobox',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Searchable Select',
@@ -219,6 +223,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'choice-cards',
+    source: { symbol: 'ChoiceCards', module: 'components-foundation-forms' },
     name: 'ChoiceCards',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Radio & Checkbox Group',
@@ -236,6 +241,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'range-number-kit',
+    source: { symbol: 'RangeNumberKit', module: 'components-foundation-forms' },
     name: 'RangeNumberKit',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Stepper & Slider',
@@ -252,6 +258,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'tag-calendar-kit',
+    source: { symbol: 'TagCalendarKit', module: 'components-foundation-forms' },
     name: 'TagCalendarKit',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Tags & Date Range',
@@ -268,6 +275,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'settings-rows',
+    source: { symbol: 'SettingsRows', module: 'components-foundation-forms' },
     name: 'SettingsRows',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Switch Field List',
@@ -283,6 +291,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'file-dropzone',
+    source: { symbol: 'FileDropzone', module: 'components-foundation-forms' },
     name: 'FileDropzone',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Upload & Progress',
@@ -298,6 +307,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'dialog-modal',
+    source: { symbol: 'DialogModal', module: 'components-foundation-nav' },
     name: 'DialogModal',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Inline Dialog Card',
@@ -313,7 +323,9 @@ const BLOCK_CATALOG: BlockSpec[] = [
     render: () => <DialogModal id="dialog-modal" />,
   },
   {
-    id: 'dropdown-menu',
+    id: 'dropdown-menu-kit',
+    demoId: 'dropdown-menu',
+    source: { symbol: 'DropdownMenuKit', module: 'components-foundation-nav' },
     name: 'DropdownMenuKit',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Roving Menu & Kbd',
@@ -329,7 +341,9 @@ const BLOCK_CATALOG: BlockSpec[] = [
     render: () => <DropdownMenuKit id="dropdown-menu" />,
   },
   {
-    id: 'popover-tooltip',
+    id: 'popover-tooltip-kit',
+    demoId: 'popover-tooltip',
+    source: { symbol: 'PopoverTooltipKit', module: 'components-foundation-nav' },
     name: 'PopoverTooltipKit',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Popover & Tooltip',
@@ -346,6 +360,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'accordion-kit',
+    source: { symbol: 'AccordionKit', module: 'components-foundation-nav' },
     name: 'AccordionKit',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Disclosure Accordion',
@@ -362,6 +377,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'nav-pagination',
+    source: { symbol: 'NavPagination', module: 'components-foundation-nav' },
     name: 'NavPagination',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Breadcrumbs & Pager',
@@ -378,6 +394,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'alert-progress',
+    source: { symbol: 'AlertProgress', module: 'components-foundation-nav' },
     name: 'AlertProgress',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Quota Meter & Alert',
@@ -394,6 +411,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'avatar-profile',
+    source: { symbol: 'AvatarProfile', module: 'components-foundation-nav' },
     name: 'AvatarProfile',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Avatar Stack & Card',
@@ -409,7 +427,9 @@ const BLOCK_CATALOG: BlockSpec[] = [
     render: () => <AvatarProfile id="avatar-profile" />,
   },
   {
-    id: 'empty-state',
+    id: 'empty-state-card',
+    demoId: 'empty-state',
+    source: { symbol: 'EmptyStateCard', module: 'components-foundation-nav' },
     name: 'EmptyStateCard',
     gesture: 'foundation',
     gestureLabel: 'Foundation · Zero-Slop Empty State',
@@ -429,6 +449,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   // ═══════════════════════════════════════════════════════════════════════
   {
     id: 'slash-mention-composer',
+    source: { symbol: 'SlashMentionComposer', module: 'components-ai-chat' },
     name: 'SlashMentionComposer',
     gesture: 'ai',
     gestureLabel: 'AI Chat · /Skills & @Mentions',
@@ -446,6 +467,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'model-effort-picker',
+    source: { symbol: 'ModelEffortPicker', module: 'components-ai-chat' },
     name: 'ModelEffortPicker',
     gesture: 'ai',
     gestureLabel: 'AI Chat · Model & Thinking Effort',
@@ -463,6 +485,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'context-budget-meter',
+    source: { symbol: 'ContextBudgetMeter', module: 'components-ai-chat' },
     name: 'ContextBudgetMeter',
     gesture: 'ai',
     gestureLabel: 'AI Chat · Context Compaction',
@@ -478,6 +501,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'grounded-answer',
+    source: { symbol: 'GroundedAnswer', module: 'components-ai-chat' },
     name: 'GroundedAnswer',
     gesture: 'ai',
     gestureLabel: 'AI Answers · Inline Citations [1..3]',
@@ -494,6 +518,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'message-branch-thread',
+    source: { symbol: 'MessageBranchThread', module: 'components-ai-chat' },
     name: 'MessageBranchThread',
     gesture: 'ai',
     gestureLabel: 'AI Answers · Branches & Resume',
@@ -511,6 +536,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'model-arena-compare',
+    source: { symbol: 'ModelArenaCompare', module: 'components-ai-chat' },
     name: 'ModelArenaCompare',
     gesture: 'ai',
     gestureLabel: 'AI Answers · Side-by-Side Eval',
@@ -527,6 +553,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'vision-region-ask',
+    source: { symbol: 'VisionRegionAsk', module: 'components-ai-chat' },
     name: 'VisionRegionAsk',
     gesture: 'ai',
     gestureLabel: 'AI Vision · Point-and-Ask Boxes',
@@ -543,6 +570,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'voice-orb-session',
+    source: { symbol: 'VoiceOrbSession', module: 'components-ai-chat' },
     name: 'VoiceOrbSession',
     gesture: 'ai',
     gestureLabel: 'AI Voice · Live Waveform & Transcript',
@@ -560,6 +588,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'tool-approval-gate',
+    source: { symbol: 'ToolApprovalGate', module: 'components-ai-agents' },
     name: 'ToolApprovalGate',
     gesture: 'ai',
     gestureLabel: 'AI Agents · HITL Safety Gate',
@@ -576,6 +605,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'subagent-swarm-board',
+    source: { symbol: 'SubagentSwarmBoard', module: 'components-ai-agents' },
     name: 'SubagentSwarmBoard',
     gesture: 'ai',
     gestureLabel: 'AI Agents · Multi-Agent Swarm',
@@ -592,6 +622,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'agent-plan-checklist',
+    source: { symbol: 'AgentPlanChecklist', module: 'components-ai-agents' },
     name: 'AgentPlanChecklist',
     gesture: 'ai',
     gestureLabel: 'AI Agents · Executable Step Plan',
@@ -608,6 +639,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'artifact-canvas',
+    source: { symbol: 'ArtifactCanvas', module: 'components-ai-agents' },
     name: 'ArtifactCanvas',
     gesture: 'ai',
     gestureLabel: 'AI Agents · Preview / Code / Diff',
@@ -625,6 +657,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'agent-memory-store',
+    source: { symbol: 'AgentMemoryStore', module: 'components-ai-agents' },
     name: 'AgentMemoryStore',
     gesture: 'ai',
     gestureLabel: 'AI Agents · Persistent Memory',
@@ -640,6 +673,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'terminal-stream-card',
+    source: { symbol: 'TerminalStreamCard', module: 'components-ai-agents' },
     name: 'TerminalStreamCard',
     gesture: 'ai',
     gestureLabel: 'AI Agents · CLI Stream & Exit Code',
@@ -656,6 +690,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'rate-limit-banner',
+    source: { symbol: 'RateLimitBanner', module: 'components-ai-agents' },
     name: 'RateLimitBanner',
     gesture: 'ai',
     gestureLabel: 'AI Agents · 429 Quota Fallback',
@@ -671,6 +706,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'mcp-server-roster',
+    source: { symbol: 'McpServerRoster', module: 'components-ai-agents' },
     name: 'McpServerRoster',
     gesture: 'ai',
     gestureLabel: 'AI Agents · MCP Server Registry',
@@ -689,7 +725,9 @@ const BLOCK_CATALOG: BlockSpec[] = [
   // III. Tactile Micro-Interaction, Workspace & Media Blocks (Original 28)
   // ═══════════════════════════════════════════════════════════════════════
   {
-    id: 'confirm-send',
+    id: 'state-button',
+    demoId: 'confirm-send',
+    source: { symbol: 'StateButton', module: 'components' },
     name: 'ConfirmSend',
     gesture: 'press',
     gestureLabel: 'Press · State Machine',
@@ -706,6 +744,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'scrub-panel',
+    source: { symbol: 'ScrubPanel', module: 'components' },
     name: 'PathPanel',
     gesture: 'drag',
     gestureLabel: 'Drag · Scrub Rows',
@@ -723,6 +762,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'slide-confirm',
+    source: { symbol: 'SlideConfirm', module: 'components' },
     name: 'WakeSlider',
     gesture: 'drag',
     gestureLabel: 'Drag · High Consequence',
@@ -738,6 +778,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'dynamic-island',
+    source: { symbol: 'DynamicIsland', module: 'components' },
     name: 'DynamicIsland',
     gesture: 'press',
     gestureLabel: 'Press · Spatial Morph',
@@ -754,6 +795,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'morph-card',
+    source: { symbol: 'MorphCard', module: 'components' },
     name: 'MorphCard',
     gesture: 'press',
     gestureLabel: 'Press · In-Place Disclosure',
@@ -770,6 +812,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'metric-ribbon',
+    source: { symbol: 'MetricRibbon', module: 'components' },
     name: 'IncomeFlow',
     gesture: 'hover',
     gestureLabel: 'Hover · Rolling Odometer',
@@ -785,7 +828,9 @@ const BLOCK_CATALOG: BlockSpec[] = [
     render: () => <MetricRibbon id="metric-ribbon" />,
   },
   {
-    id: 'ai-composer',
+    id: 'composer',
+    demoId: 'ai-composer',
+    source: { symbol: 'Composer', module: 'components' },
     name: 'AiComposer',
     gesture: 'ai',
     gestureLabel: 'AI Chat · Multi-Modal Input',
@@ -806,6 +851,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'thinking-morph',
+    source: { symbol: 'ThinkingMorph', module: 'components' },
     name: 'ThinkingMorph',
     gesture: 'ai',
     gestureLabel: 'AI Agents · Shimmer Reasoning',
@@ -822,6 +868,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'command-palette',
+    source: { symbol: 'CommandPalette', module: 'components' },
     name: 'CommandPalette',
     gesture: 'hover',
     gestureLabel: 'Type · Roving Focus',
@@ -838,6 +885,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'toast-stack',
+    source: { symbol: 'ToastStack', module: 'components' },
     name: 'ToastStack',
     gesture: 'hover',
     gestureLabel: 'Hover · Z-Axis Stack',
@@ -855,6 +903,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'split-compare',
+    source: { symbol: 'SplitCompare', module: 'components' },
     name: 'SplitCompare',
     gesture: 'drag',
     gestureLabel: 'Drag · Before / After',
@@ -870,7 +919,9 @@ const BLOCK_CATALOG: BlockSpec[] = [
     render: () => <SplitCompare id="split-compare" />,
   },
   {
-    id: 'rolling-odometer',
+    id: 'rolling-number',
+    demoId: 'rolling-odometer',
+    source: { symbol: 'RollingNumber', module: 'components' },
     name: 'RollingOdometer',
     gesture: 'press',
     gestureLabel: 'Press · Live Odometer',
@@ -883,6 +934,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'otp-field',
+    source: { symbol: 'OtpField', module: 'components-extended' },
     name: 'OneTimeCode',
     gesture: 'hover',
     gestureLabel: 'Type · 6-Digit Verification',
@@ -898,6 +950,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'pass-strength',
+    source: { symbol: 'PassStrength', module: 'components-extended' },
     name: 'PassReveal',
     gesture: 'hover',
     gestureLabel: 'Type · Optical Blur & Entropy',
@@ -914,6 +967,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'time-slot-picker',
+    source: { symbol: 'TimeSlotPicker', module: 'components-extended' },
     name: 'StandingCalendar',
     gesture: 'press',
     gestureLabel: 'Press · Day & Slot Matrix',
@@ -930,6 +984,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'radial-dial',
+    source: { symbol: 'RadialDial', module: 'components-extended' },
     name: 'ContextGauge',
     gesture: 'drag',
     gestureLabel: 'Drag · Rotary Arc Gauge',
@@ -946,6 +1001,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'swipe-card',
+    source: { symbol: 'SwipeCard', module: 'components-extended' },
     name: 'SwipeActions',
     gesture: 'press',
     gestureLabel: 'Press & Swipe · Action Reveal',
@@ -962,6 +1018,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'selection-toolbar',
+    source: { symbol: 'SelectionToolbar', module: 'components-extended' },
     name: 'FormatBar',
     gesture: 'press',
     gestureLabel: 'Press · Floating Toolbar Morph',
@@ -978,6 +1035,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'data-grid',
+    source: { symbol: 'DataGrid', module: 'components-extended' },
     name: 'InlineDataGrid',
     gesture: 'workspace',
     gestureLabel: 'Workspace · Inline-Edit Table',
@@ -994,6 +1052,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'tree-explorer',
+    source: { symbol: 'TreeExplorer', module: 'components-extended' },
     name: 'TreeExplorer',
     gesture: 'workspace',
     gestureLabel: 'Workspace · File Tree',
@@ -1010,6 +1069,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'resizable-split',
+    source: { symbol: 'ResizableSplit', module: 'components-extended' },
     name: 'ResizablePanels',
     gesture: 'drag',
     gestureLabel: 'Drag · Split Layout',
@@ -1026,6 +1086,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'filter-bar',
+    source: { symbol: 'FilterBar', module: 'components-extended' },
     name: 'FilterTokens',
     gesture: 'workspace',
     gestureLabel: 'Workspace · Faceted Search',
@@ -1042,6 +1103,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'drawer-sheet',
+    source: { symbol: 'DrawerSheet', module: 'components-extended' },
     name: 'VaulSheet',
     gesture: 'workspace',
     gestureLabel: 'Workspace · Scaled Backdrop Sheet',
@@ -1057,6 +1119,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'tabs-morph',
+    source: { symbol: 'TabsMorph', module: 'components-extended' },
     name: 'WorkspaceTabs',
     gesture: 'workspace',
     gestureLabel: 'Workspace · Roving Tabs',
@@ -1073,6 +1136,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'audio-wave-trim',
+    source: { symbol: 'AudioWaveTrim', module: 'components-extended' },
     name: 'WaveTrim',
     gesture: 'ai',
     gestureLabel: 'AI & Media · Waveform Trimmer',
@@ -1088,6 +1152,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'code-diff-reveal',
+    source: { symbol: 'CodeDiffReveal', module: 'components-extended' },
     name: 'CodePatchMorph',
     gesture: 'ai',
     gestureLabel: 'AI & Media · Patch Apply Morph',
@@ -1103,6 +1168,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'skeleton-morph',
+    source: { symbol: 'SkeletonMorph', module: 'components-extended' },
     name: 'SkeletonMorph',
     gesture: 'ai',
     gestureLabel: 'AI & Media · Shimmer → Card',
@@ -1118,6 +1184,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'transfer-list',
+    source: { symbol: 'TransferList', module: 'components-extended' },
     name: 'SourceTransfer',
     gesture: 'workspace',
     gestureLabel: 'Workspace · Dual-Bucket Transfer',
@@ -1135,6 +1202,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   // ── 7. RADIX PRIMITIVES (8 Blocks) ────────────────────────────
   {
     id: 'context-menu-kit',
+    source: { symbol: 'ContextMenuKit', module: 'components-radix-primitives' },
     name: 'ContextMenuKit',
     gesture: 'foundation',
     gestureLabel: 'Radix · Right-Click Context Menu',
@@ -1151,6 +1219,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'menubar-kit',
+    source: { symbol: 'MenubarKit', module: 'components-radix-primitives' },
     name: 'MenubarKit',
     gesture: 'foundation',
     gestureLabel: 'Radix · Desktop Application Menubar',
@@ -1167,6 +1236,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'navigation-menu-kit',
+    source: { symbol: 'NavigationMenuKit', module: 'components-radix-primitives' },
     name: 'NavigationMenuKit',
     gesture: 'foundation',
     gestureLabel: 'Radix · Animated Mega-Menu Viewport',
@@ -1183,6 +1253,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'toggle-toolbar-kit',
+    source: { symbol: 'ToggleToolbarKit', module: 'components-radix-primitives' },
     name: 'ToggleToolbarKit',
     gesture: 'foundation',
     gestureLabel: 'Radix · Toolbar + ToggleGroup',
@@ -1199,6 +1270,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'scroll-area-kit',
+    source: { symbol: 'ScrollAreaKit', module: 'components-radix-primitives' },
     name: 'ScrollAreaKit',
     gesture: 'foundation',
     gestureLabel: 'Radix · Custom Overlay Scrollbar',
@@ -1215,6 +1287,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'aspect-ratio-kit',
+    source: { symbol: 'AspectRatioKit', module: 'components-radix-primitives' },
     name: 'AspectRatioKit',
     gesture: 'foundation',
     gestureLabel: 'Radix · Responsive Aspect Ratio Frame',
@@ -1231,6 +1304,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'alert-dialog-kit',
+    source: { symbol: 'AlertDialogKit', module: 'components-radix-primitives' },
     name: 'AlertDialogKit',
     gesture: 'foundation',
     gestureLabel: 'Radix · Non-Dismissible AlertDialog',
@@ -1247,6 +1321,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'collapsible-range-kit',
+    source: { symbol: 'CollapsibleRangeKit', module: 'components-radix-primitives' },
     name: 'CollapsibleRangeKit',
     gesture: 'foundation',
     gestureLabel: 'Radix · Dual-Thumb Slider + Collapsible',
@@ -1264,6 +1339,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   // ── 8. BASE UI COMPOUND PRIMITIVES (6 Blocks) ─────────────────
   {
     id: 'fieldset-form-kit',
+    source: { symbol: 'FieldsetFormKit', module: 'components-base-ui' },
     name: 'FieldsetFormKit',
     gesture: 'foundation',
     gestureLabel: 'Base UI · Form + Fieldset + Field',
@@ -1280,6 +1356,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'autocomplete-kit',
+    source: { symbol: 'AutocompleteKit', module: 'components-base-ui' },
     name: 'AutocompleteKit',
     gesture: 'foundation',
     gestureLabel: 'Base UI · Free-Text Autocomplete',
@@ -1295,6 +1372,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'checkbox-group-kit',
+    source: { symbol: 'CheckboxGroupKit', module: 'components-base-ui' },
     name: 'CheckboxGroupKit',
     gesture: 'foundation',
     gestureLabel: 'Base UI · 3-State Indeterminate Group',
@@ -1311,6 +1389,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'number-scrub-field-kit',
+    source: { symbol: 'NumberScrubFieldKit', module: 'components-base-ui' },
     name: 'NumberScrubFieldKit',
     gesture: 'drag',
     gestureLabel: 'Base UI · NumberField + ScrubArea',
@@ -1327,6 +1406,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'meter-progress-kit',
+    source: { symbol: 'MeterProgressKit', module: 'components-base-ui' },
     name: 'MeterProgressKit',
     gesture: 'foundation',
     gestureLabel: 'Base UI · Semantic Meter vs Progress',
@@ -1343,6 +1423,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'preview-card-kit',
+    source: { symbol: 'PreviewCardKit', module: 'components-base-ui' },
     name: 'PreviewCardKit',
     gesture: 'hover',
     gestureLabel: 'Base UI · Delayed Link PreviewCard',
@@ -1361,6 +1442,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   // ── 9. PORTAL, FLOATING & STUDIO PRIMITIVES (6 Blocks) ────────
   {
     id: 'floating-popover-kit',
+    source: { symbol: 'FloatingPopoverKit', module: 'components-portal-floating' },
     name: 'FloatingPopoverKit',
     gesture: 'workspace',
     gestureLabel: 'Portal · Collision-Aware Floating Engine',
@@ -1377,6 +1459,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'hover-preview-list',
+    source: { symbol: 'HoverPreviewList', module: 'components-portal-floating' },
     name: 'HoverPreviewList',
     gesture: 'hover',
     gestureLabel: 'Portal · Hover-Intent Preview List',
@@ -1392,6 +1475,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'breadcrumb-dropdown-bar',
+    source: { symbol: 'BreadcrumbDropdownBar', module: 'components-portal-floating' },
     name: 'BreadcrumbDropdownBar',
     gesture: 'workspace',
     gestureLabel: 'Portal · Breadcrumb Sibling Switcher',
@@ -1407,6 +1491,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'adaptive-toolbar-kit',
+    source: { symbol: 'AdaptiveToolbarKit', module: 'components-portal-floating' },
     name: 'AdaptiveToolbarKit',
     gesture: 'workspace',
     gestureLabel: 'Portal · Priority-Collapsed Toolbar',
@@ -1422,6 +1507,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'swatch-preview-matrix',
+    source: { symbol: 'SwatchPreviewMatrix', module: 'components-portal-floating' },
     name: 'SwatchPreviewMatrix',
     gesture: 'hover',
     gestureLabel: 'Portal · 2-Column Swatch Live Preview',
@@ -1438,6 +1524,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'floating-inspector-sheet',
+    source: { symbol: 'FloatingInspectorSheet', module: 'components-portal-floating' },
     name: 'FloatingInspectorSheet',
     gesture: 'workspace',
     gestureLabel: 'Portal · Non-Blocking Property Sheet',
@@ -1456,6 +1543,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   // ── 10. MEDIA, TIMELINE & WORKBENCH PRIMITIVES (6 Blocks) ─────
   {
     id: 'media-transport-dock',
+    source: { symbol: 'MediaTransportDock', module: 'components-media-workbench' },
     name: 'MediaTransportDock',
     gesture: 'workspace',
     gestureLabel: 'Workbench · Transport & Step Timeline',
@@ -1472,6 +1560,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'idle-fullscreen-pill',
+    source: { symbol: 'IdleFullscreenPill', module: 'components-media-workbench' },
     name: 'IdleFullscreenPill',
     gesture: 'hover',
     gestureLabel: 'Workbench · Idle Auto-Hide Capsule',
@@ -1488,6 +1577,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'draggable-snap-orb',
+    source: { symbol: 'DraggableSnapOrb', module: 'components-media-workbench' },
     name: 'DraggableSnapOrb',
     gesture: 'drag',
     gestureLabel: 'Workbench · 4-Corner Magnetic Snap Orb',
@@ -1504,6 +1594,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'background-task-menu',
+    source: { symbol: 'BackgroundTaskMenu', module: 'components-media-workbench' },
     name: 'BackgroundTaskMenu',
     gesture: 'workspace',
     gestureLabel: 'Workbench · Progress Ring & Task Menu',
@@ -1520,6 +1611,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'copy-snippet-flash',
+    source: { symbol: 'CopySnippetFlash', module: 'components-media-workbench' },
     name: 'CopySnippetFlash',
     gesture: 'press',
     gestureLabel: 'Workbench · Click-to-Copy Flash Pill',
@@ -1535,6 +1627,7 @@ const BLOCK_CATALOG: BlockSpec[] = [
   },
   {
     id: 'masked-secret-manager',
+    source: { symbol: 'MaskedSecretManager', module: 'components-media-workbench' },
     name: 'MaskedSecretManager',
     gesture: 'workspace',
     gestureLabel: 'Workbench · Masked API Key Vault',
@@ -1590,13 +1683,13 @@ function OdometerPlayground() {
 function BenchInner() {
   const { theme, fill, sound, animate, setTheme, setFill, setSound, setAnimate } = useJuice();
   const [section, setSection] = useState<SiteSection>('playground');
+  const [installTrack, setInstallTrack] = useState<InstallTrack>('npm');
   const [quickJumpOpen, setQuickJumpOpen] = useState<boolean>(false);
   const [category, setCategory] = useState<GestureCategory>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string>('slash-mention-composer');
   const [showSoundStrip, setShowSoundStrip] = useState<boolean>(false);
-  const [codeTab, setCodeTab] = useState<'react' | 'vue' | 'joplo'>('react');
-  const [copied, setCopied] = useState<boolean>(false);
+  const [codeTab, setCodeTab] = useState<CodeTab>('react');
   const [agentTick, setAgentTick] = useState<number>(0);
 
   useEffect(() => {
@@ -1611,13 +1704,15 @@ function BenchInner() {
   }, []);
 
   const jumpToBlock = (blockId: string) => {
+    const block = BLOCK_CATALOG.find((item) => item.id === blockId || item.demoId === blockId);
+    if (!block) return;
     setSection('playground');
     setCategory('all');
     setSearchQuery('');
-    setSelectedId(blockId);
+    setSelectedId(block.id);
     setAgentTick((t) => t + 1);
     window.setTimeout(() => {
-      const el = document.querySelector(`[data-block-cell="${blockId}"]`);
+      const el = document.querySelector(`[data-block-cell="${block.demoId ?? block.id}"]`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
   };
@@ -1656,32 +1751,39 @@ function BenchInner() {
     [selectedId],
   );
 
+  const agentId = selectedBlock.demoId ?? selectedBlock.id;
   const liveSnapshot = useMemo(() => {
     void agentTick;
     if (typeof window === 'undefined') return null;
     const bridge = (window as unknown as { __juiceAgent?: JuiceAgentBridge }).__juiceAgent;
     const all = bridge?.snapshot();
-    return all?.[selectedBlock.id]?.state ?? null;
-  }, [selectedBlock.id, agentTick]);
+    return all?.[agentId]?.state ?? null;
+  }, [agentId, agentTick]);
 
   const triggerAgentAction = (action: string, payload?: unknown) => {
     const bridge = (window as unknown as { __juiceAgent?: JuiceAgentBridge }).__juiceAgent;
-    bridge?.act(selectedBlock.id, action, payload);
+    bridge?.act(agentId, action, payload);
     setAgentTick((t) => t + 1);
   };
 
+  const { symbol, module } = selectedBlock.source;
   const activeCodeText = useMemo(() => {
-    if (codeTab === 'react') return selectedBlock.reactCode;
     if (codeTab === 'vue') return deriveVueSnippet(selectedBlock);
-    return selectedBlock.joploCode;
-  }, [codeTab, selectedBlock]);
+    if (codeTab === 'joplo') return selectedBlock.joploCode;
+    if (codeTab === 'cli') return `# 1. Initialize once (copies juice.css + sound + behaviors)
+npx @tokenroll/juice init
 
-  const copySnippet = () => {
-    navigator.clipboard?.writeText(activeCodeText).catch(() => {});
-    playJuiceSound('tap');
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
+# 2. Copy source for this block + its local deps into src/components/juice/
+npx @tokenroll/juice add ${selectedBlock.id}`;
+
+    const props = symbol === 'RollingNumber' ? 'value={148920} prefix="$"' : `id="${agentId}"`;
+    return `import '@tokenroll/juice/styles.css';
+import { ${symbol} } from '@tokenroll/juice/blocks';
+
+export default function App() {
+  return <${symbol} ${props} />;
+}`;
+  }, [agentId, codeTab, selectedBlock, symbol]);
 
   return (
     <div className="bench-shell">
@@ -1831,7 +1933,8 @@ function BenchInner() {
       {/* Section 1: Playground (86 Live Interactive Blocks) */}
       {section === 'playground' && (
         <>
-          <QuickInstallRibbon blockCount={BLOCK_CATALOG.length} onOpenDocs={() => setSection('docs')} />
+          <QuickInstallRibbon blockCount={BLOCK_CATALOG.length} track={installTrack}
+            onTrackChange={setInstallTrack} onOpenDocs={() => setSection('docs')} />
 
           <div className="bench-workspace">
             <main className="bench-main">
@@ -1882,7 +1985,7 @@ function BenchInner() {
                   return (
                     <article
                       key={block.id}
-                      data-block-cell={block.id}
+                      data-block-cell={block.demoId ?? block.id}
                       className="bench-cell"
                       data-selected={isSelected ? 'true' : undefined}
                       onClick={() => setAgentTick((t) => t + 1)}
@@ -1976,7 +2079,7 @@ function BenchInner() {
                       className="bench-code-box"
                       style={{ fontSize: 11, padding: '8px 10px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                     >
-                      {`snapshot("${selectedBlock.id}") → ${JSON.stringify(liveSnapshot)}`}
+                      {`snapshot("${agentId}") → ${JSON.stringify(liveSnapshot)}`}
                     </pre>
                   )}
                 </div>
@@ -2008,32 +2111,24 @@ function BenchInner() {
                 </div>
               </div>
 
-              {/* 3. Code Snippets: React TSX | Vue 3 | Joplo Flow */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <SegmentedControl
-                    options={[
-                      { value: 'react', label: 'React', icon: <Code2 size={12} /> },
-                      { value: 'vue', label: 'Vue 3', icon: <Layers size={12} /> },
-                      { value: 'joplo', label: 'Joplo', icon: <Terminal size={12} /> },
-                    ]}
-                    value={codeTab}
-                    onChange={setCodeTab}
+              <div className="site-inspector-code">
+                <SegmentedControl<CodeTab>
+                  options={[
+                    { value: 'react', label: 'React' },
+                    { value: 'vue', label: 'Vue 3' },
+                    { value: 'cli', label: 'CLI' },
+                    { value: 'joplo', label: 'Joplo' },
+                  ]}
+                  value={codeTab}
+                  onChange={setCodeTab}
+                />
+                <CopySnippet code={activeCodeText} label={codeTab === 'cli' ? 'Terminal commands' : 'Usage example'} />
+                {codeTab === 'cli' && (
+                  <CopySnippet
+                    code={`import './components/juice/juice.css';\nimport { ${symbol} } from './components/juice/${module}';`}
+                    label="Local import from src/App.tsx"
                   />
-
-                  <Button
-                    size="xs"
-                    variant="secondary"
-                    leftIcon={copied ? <Check size={12} /> : <Copy size={12} />}
-                    onClick={copySnippet}
-                  >
-                    {copied ? 'Copied' : 'Copy'}
-                  </Button>
-                </div>
-
-                <pre className="bench-code-box" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {activeCodeText}
-                </pre>
+                )}
               </div>
             </aside>
           </div>
@@ -2041,7 +2136,7 @@ function BenchInner() {
       )}
 
       {/* Section 2: Get Started & Usage Guide */}
-      {section === 'docs' && <GetStartedView onOpenPlayground={() => setSection('playground')} />}
+      {section === 'docs' && <GetStartedView track={installTrack} onTrackChange={setInstallTrack} onOpenPlayground={() => setSection('playground')} />}
 
       {/* Section 3: Primitives & Architecture API Reference */}
       {section === 'api' && <PrimitivesApiView onJumpToBlock={jumpToBlock} />}
