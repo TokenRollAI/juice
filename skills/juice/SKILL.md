@@ -1,11 +1,11 @@
 ---
 name: juice
-description: Build and compose tactile, modern React UI interfaces, micro-interaction blocks, and AI agent flows using @juice-ui/react, concentric color-mix tokens, headless behaviors, and procedural Web Audio sounds.
+description: Build and compose tactile, modern React UI interfaces, micro-interaction blocks, high-density workspaces, and AI agent flows using @juice-ui/react, concentric color-mix tokens, headless behaviors, and procedural Web Audio sounds.
 ---
 
 # Juice UI Skill (`@juice-ui/react`)
 
-Use `@juice-ui/react` when building high-craft product interfaces, tactile micro-interactions, or demo-ready application screens without border bloat or generic AI-template noise.
+Use `@juice-ui/react` when building high-craft product interfaces, tactile micro-interactions, operator workspaces, or demo-ready application screens without border bloat or generic AI-template noise.
 
 ## 1. Design Rules & Concentric Tokens
 
@@ -15,30 +15,22 @@ Use `@juice-ui/react` when building high-craft product interfaces, tactile micro
 - **Concentric Geometry**: Outer card `.j-slab` uses `border-radius: 20px` and `padding: 6px`; direct inner rows use `border-radius: 14px` (`20 - 6 = 14`); inner controls use `10px`.
 - **Tabular Numerals**: Wrap animated metrics or counters in `<RollingNumber value={...} prefix="$" />` so digits never jitter horizontally.
 
-## 2. Dual-Driven State & Agent/Joplo Bridge
+## 2. Complete Component Catalog (28 Blocks + 4 Primitives)
 
-Every Juice block supports both **uncontrolled audience play** (`default*` props) and **controlled timeline/state play** (`value` / `stage` / `mode` / `opened` props):
+| Category | Components |
+| :--- | :--- |
+| **Primitives** | `Kbd`, `Badge`, `SegmentedControl`, `Switch`, `RollingNumber` |
+| **Press & State Morph** | `StateButton` (`ConfirmSend`), `DynamicIsland`, `MorphCard`, `TimeSlotPicker` (`StandingCalendar`), `SwipeCard` (`SwipeActions`), `SelectionToolbar` (`FormatBar`) |
+| **Drag & Direct Manipulation** | `ScrubPanel` (`PathPanel`), `SlideConfirm` (`WakeSlider`), `SplitCompare`, `RadialDial` (`ContextGauge`) |
+| **Hover & Type** | `MetricRibbon` (`IncomeFlow`), `ToastStack`, `CommandPalette`, `OtpField` (`OneTimeCode`), `PassStrength` (`PassReveal`) |
+| **High-Density Workspace** | `DataGrid` (`InlineDataGrid`), `TreeExplorer`, `ResizableSplit`, `FilterBar`, `DrawerSheet` (`VaulSheet`), `TabsMorph`, `TransferList` (`SourceTransfer`) |
+| **AI & Media Narrative** | `Composer` (`AiComposer`), `ThinkingMorph`, `AudioWaveTrim` (`WaveTrim`), `CodeDiffReveal` (`CodePatchMorph`), `SkeletonMorph` |
 
-```tsx
-import {
-  JuiceProvider,
-  StateButton,
-  ScrubPanel,
-  SlideConfirm,
-  DynamicIsland,
-  MorphCard,
-  MetricRibbon,
-  Composer,
-  ThinkingMorph,
-  CommandPalette,
-  ToastStack,
-  SplitCompare,
-  RollingNumber,
-} from '@juice-ui/react';
-import '@juice-ui/react/styles.css';
-```
+## 3. Dual-Driven State & Agent/Joplo Bridge
+
+Every Juice block supports both **uncontrolled audience play** (`default*` props) and **controlled timeline/state play** (`value` / `stage` / `mode` / `opened` props).
 
 - **Deterministic Frame Mode (for Joplo Storyboards & Screenshots)**: Pass `<JuiceProvider animate={false}>` to disable spring transitions so every component settles at its target steady state immediately.
 - **Runtime Agent Bridge (`window.__juiceAgent`)**:
   - `window.__juiceAgent.snapshot()` returns the live state of every mounted component with an `id`.
-  - `window.__juiceAgent.act(id, action, payload)` drives any component programmatically (e.g., `act('confirm-send', 'press')`, `act('scrub-panel', 'setTension', 92)`).
+  - `window.__juiceAgent.act(id, action, payload)` drives any component programmatically (e.g., `act('confirm-send', 'press')`, `act('data-grid', 'editSecondRow')`, `act('code-diff-reveal', 'apply')`).

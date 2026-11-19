@@ -212,7 +212,7 @@ export function RollingNumber({
 
   return (
     <span className={clsx('j-rolling-num', className)} style={style}>
-      {prefix && <span>{prefix}</span>}
+      {prefix && <span style={{ whiteSpace: 'pre' }}>{prefix}</span>}
       {chars.map((ch, idx) => {
         const digit = /\d/.test(ch) ? Number(ch) : null;
         if (digit === null) {
@@ -231,7 +231,7 @@ export function RollingNumber({
           </span>
         );
       })}
-      {suffix && <span>{suffix}</span>}
+      {suffix && <span style={{ whiteSpace: 'pre' }}>{suffix}</span>}
     </span>
   );
 }

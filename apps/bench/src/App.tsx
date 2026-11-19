@@ -1,23 +1,39 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
+  AudioWaveTrim,
   Badge,
+  CodeDiffReveal,
   CommandPalette,
   Composer,
+  DataGrid,
+  DrawerSheet,
   DynamicIsland,
+  FilterBar,
   JUICE_SOUND_CATALOG,
   JuiceProvider,
   Kbd,
   MetricRibbon,
   MorphCard,
+  OtpField,
+  PassStrength,
   playJuiceSound,
+  RadialDial,
+  ResizableSplit,
   RollingNumber,
   ScrubPanel,
   SegmentedControl,
+  SelectionToolbar,
+  SkeletonMorph,
   SlideConfirm,
   SplitCompare,
   StateButton,
+  SwipeCard,
+  TabsMorph,
   ThinkingMorph,
+  TimeSlotPicker,
   ToastStack,
+  TransferList,
+  TreeExplorer,
   useJuice,
   type JuiceAgentBridge,
   type JuiceSoundName,
@@ -28,15 +44,15 @@ import {
   Copy,
   Moon,
   Play,
+  Search,
   Sliders,
   Sparkles,
   Sun,
   Volume2,
   VolumeX,
-  X,
 } from 'lucide-react';
 
-type GestureCategory = 'all' | 'press' | 'drag' | 'hover' | 'type' | 'ai';
+type GestureCategory = 'all' | 'press' | 'drag' | 'hover' | 'type' | 'workspace' | 'ai';
 
 type BlockSpec = {
   id: string;
@@ -52,6 +68,7 @@ type BlockSpec = {
 };
 
 const BLOCK_CATALOG: BlockSpec[] = [
+  // ── 1-12: Core Micro-Interaction & AI Blocks ──────────────────────────
   {
     id: 'confirm-send',
     name: 'ConfirmSend',
@@ -295,6 +312,300 @@ const BLOCK_CATALOG: BlockSpec[] = [
   .system('New enterprise seat added', set($.data.arr, 148920))`,
     render: () => <OdometerPlayground />,
   },
+
+  // ── 13-28: Extended Tactile, Workspace & AI/Media Blocks ──────────────
+  {
+    id: 'otp-field',
+    name: 'OneTimeCode',
+    gesture: 'type',
+    gestureLabel: 'Type · 6-Digit Verification',
+    summary: 'Concentric 6-slot OTP verification with auto-advance, backspace roving, paste support, and verified chime.',
+    sounds: ['tick', 'paid', 'tap'],
+    agentActions: [
+      { label: 'Paste 428-910', action: 'fill', payload: '428910' },
+      { label: 'Clear Slots', action: 'clear' },
+    ],
+    reactCode: `<OtpField
+  id="otp-field"
+  defaultCode="4289"
+/>`,
+    joploCode: `flow('Verify 2FA code', { start: '/login/2fa' })
+  .type('otp-field', '428910', done('2FA verified'))`,
+    render: () => <OtpField id="otp-field" />,
+  },
+  {
+    id: 'pass-strength',
+    name: 'PassReveal',
+    gesture: 'type',
+    gestureLabel: 'Type · Optical Blur & Entropy',
+    summary: 'Optical blur-to-clear password reveal with 4-bar live entropy gauge and rule verification pills.',
+    sounds: ['pop', 'tap'],
+    agentActions: [
+      { label: 'Toggle Peek/Blur', action: 'toggleReveal' },
+      { label: 'Weak Password', action: 'setPassword', payload: 'short' },
+      { label: 'Vault Password', action: 'setPassword', payload: 'Juice#Craft2026!' },
+    ],
+    reactCode: `<PassStrength
+  id="pass-strength"
+  defaultValue="Juice#Craft2026!"
+/>`,
+    joploCode: `flow('Inspect signing key strength', { start: '/security' })
+  .click('pass-strength', 'Unblur vault signing key')`,
+    render: () => <PassStrength id="pass-strength" />,
+  },
+  {
+    id: 'time-slot-picker',
+    name: 'StandingCalendar',
+    gesture: 'press',
+    gestureLabel: 'Press · Day & Slot Matrix',
+    summary: 'Compact 5-day strip and time slot grid with one-tap booking confirmation and instant reschedule.',
+    sounds: ['tick', 'tap', 'paid'],
+    agentActions: [
+      { label: 'Select Thu 21', action: 'selectDay', payload: 'thu' },
+      { label: 'Select 16:30 PST', action: 'selectSlot', payload: '16:30' },
+      { label: 'Confirm Booking', action: 'book' },
+    ],
+    reactCode: `<TimeSlotPicker
+  id="time-slot-picker"
+  defaultDay="wed"
+  defaultSlot="14:00"
+/>`,
+    joploCode: `flow('Book design review slot', { start: '/schedule' })
+  .click('time-slot-picker', 'Hold 14:00 PST slot', done('Booked'))`,
+    render: () => <TimeSlotPicker id="time-slot-picker" />,
+  },
+  {
+    id: 'radial-dial',
+    name: 'ContextGauge',
+    gesture: 'drag',
+    gestureLabel: 'Drag · Rotary Arc Gauge',
+    summary: '270° SVG rotary gauge with pointer/keyboard scrub detents, semantic color zones, and rolling token readout.',
+    sounds: ['tick'],
+    agentActions: [
+      { label: 'Optimal (32%)', action: 'setValue', payload: 32 },
+      { label: 'Elevated (68%)', action: 'setValue', payload: 68 },
+      { label: 'Critical (92%)', action: 'setValue', payload: 92 },
+    ],
+    reactCode: `<RadialDial
+  id="radial-dial"
+  defaultValue={68}
+/>`,
+    joploCode: `flow('Monitor context window pressure', { start: '/agent' })
+  .drag('radial-dial', 'Scrub context load to 92%')`,
+    render: () => <RadialDial id="radial-dial" />,
+  },
+  {
+    id: 'swipe-card',
+    name: 'SwipeActions',
+    gesture: 'press',
+    gestureLabel: 'Press & Swipe · Action Reveal',
+    summary: 'Interactive PR inbox rows that slide to reveal concentric Approve/Archive actions with optimistic Undo.',
+    sounds: ['swipe', 'paid', 'drop'],
+    agentActions: [
+      { label: 'Peek Approve', action: 'peekApprove' },
+      { label: 'Merge First PR', action: 'approveFirst' },
+      { label: 'Reset Rows', action: 'reset' },
+    ],
+    reactCode: `<SwipeCard id="swipe-card" />`,
+    joploCode: `flow('Triage pull requests with undo', { start: '/inbox' })
+  .click('swipe-card', 'Reveal approve action and merge PR #412')`,
+    render: () => <SwipeCard id="swipe-card" />,
+  },
+  {
+    id: 'selection-toolbar',
+    name: 'FormatBar',
+    gesture: 'press',
+    gestureLabel: 'Press · Floating Toolbar Morph',
+    summary: 'Floating dark action pill that morphs in-place between typography toggles and AI copy rewriting.',
+    sounds: ['tap', 'pop', 'paid'],
+    agentActions: [
+      { label: 'Toggle Code Style', action: 'toggleFormat', payload: 'code' },
+      { label: 'Morph to AI Rewrite', action: 'openAi' },
+      { label: 'Apply AI Tighten', action: 'applyAiPolish' },
+    ],
+    reactCode: `<SelectionToolbar id="selection-toolbar" />`,
+    joploCode: `flow('Rewrite selected copy inline', { start: '/editor' })
+  .click('selection-toolbar', 'Morph toolbar into AI rewrite mode')`,
+    render: () => <SelectionToolbar id="selection-toolbar" />,
+  },
+  {
+    id: 'data-grid',
+    name: 'InlineDataGrid',
+    gesture: 'workspace',
+    gestureLabel: 'Workspace · Inline-Edit Table',
+    summary: 'High-density operator table with click-to-edit numeric cells, row selection, and contextual batch boost.',
+    sounds: ['tap', 'latch', 'paid'],
+    agentActions: [
+      { label: 'Edit Row 2 Quota', action: 'editSecondRow' },
+      { label: 'Commit 980 RPS', action: 'commitSecondRow' },
+      { label: 'Batch +200 RPS', action: 'boostSelected' },
+    ],
+    reactCode: `<DataGrid id="data-grid" />`,
+    joploCode: `flow('Edit worker RPS quota inline', { start: '/workers' })
+  .click('data-grid', 'Edit juice-sync RPS cell')
+  .type('data-grid', '980')`,
+    render: () => <DataGrid id="data-grid" />,
+  },
+  {
+    id: 'tree-explorer',
+    name: 'TreeExplorer',
+    gesture: 'workspace',
+    gestureLabel: 'Workspace · File Tree',
+    summary: 'Hierarchical source tree with collapsible folders, active file selection, and diff line badges.',
+    sounds: ['tap', 'tick'],
+    agentActions: [
+      { label: 'Select behaviors.tsx', action: 'selectFile', payload: 'behaviors.tsx' },
+      { label: 'Select sound.ts', action: 'selectFile', payload: 'sound.ts' },
+      { label: 'Toggle src/ Folder', action: 'toggleFolder', payload: 'src' },
+    ],
+    reactCode: `<TreeExplorer id="tree-explorer" />`,
+    joploCode: `flow('Navigate package source tree', { start: '/repo' })
+  .click('tree-explorer', 'Inspect behaviors.tsx')`,
+    render: () => <TreeExplorer id="tree-explorer" />,
+  },
+  {
+    id: 'resizable-split',
+    name: 'ResizablePanels',
+    gesture: 'workspace',
+    gestureLabel: 'Workspace · Split Layout',
+    summary: 'Dual-pane workspace with draggable divider, keyboard arrow support, and double-click 50/50 reset.',
+    sounds: ['tick', 'pop'],
+    agentActions: [
+      { label: 'Sidebar 28%', action: 'setRatio', payload: 28 },
+      { label: 'Reset 50/50', action: 'reset50' },
+      { label: 'Wide Nav 64%', action: 'setRatio', payload: 64 },
+    ],
+    reactCode: `<ResizableSplit
+  id="resizable-split"
+  defaultRatio={42}
+/>`,
+    joploCode: `flow('Resize workspace panels', { start: '/ide' })
+  .drag('resizable-split', 'Expand main stage to 72%')`,
+    render: () => <ResizableSplit id="resizable-split" />,
+  },
+  {
+    id: 'filter-bar',
+    name: 'FilterTokens',
+    gesture: 'workspace',
+    gestureLabel: 'Workspace · Faceted Search',
+    summary: 'Segmented query tokens where clicking values cycles operators inline and updates live match counts.',
+    sounds: ['tap', 'pop'],
+    agentActions: [
+      { label: 'Cycle Status', action: 'cycleStatus' },
+      { label: 'Cycle p99 Latency', action: 'cycleLatency' },
+      { label: 'Toggle Region Token', action: 'toggleRegion' },
+    ],
+    reactCode: `<FilterBar id="filter-bar" />`,
+    joploCode: `flow('Filter edge deployments by latency', { start: '/deployments' })
+  .click('filter-bar', 'Cycle status and latency tokens')`,
+    render: () => <FilterBar id="filter-bar" />,
+  },
+  {
+    id: 'drawer-sheet',
+    name: 'VaulSheet',
+    gesture: 'workspace',
+    gestureLabel: 'Workspace · Scaled Backdrop Sheet',
+    summary: 'Non-blocking bottom sheet that scales down the background stage card (0.93x) while preserving context.',
+    sounds: ['pop', 'drop', 'paid'],
+    agentActions: [
+      { label: 'Open Rollback Sheet', action: 'open' },
+      { label: 'Dismiss Sheet', action: 'close' },
+    ],
+    reactCode: `<DrawerSheet
+  id="drawer-sheet"
+  defaultOpen={false}
+/>`,
+    joploCode: `flow('Preview rollback in non-blocking sheet', { start: '/prod' })
+  .click('drawer-sheet', 'Open rollback sheet over scaled stage')`,
+    render: () => <DrawerSheet id="drawer-sheet" />,
+  },
+  {
+    id: 'tabs-morph',
+    name: 'WorkspaceTabs',
+    gesture: 'workspace',
+    gestureLabel: 'Workspace · Roving Tabs',
+    summary: 'Multi-panel service inspector tabs with keyboard arrow roving and height-stable panel switching.',
+    sounds: ['tap'],
+    agentActions: [
+      { label: 'Tab: Overview', action: 'setTab', payload: 'overview' },
+      { label: 'Tab: Bindings', action: 'setTab', payload: 'bindings' },
+      { label: 'Tab: Live Tail', action: 'setTab', payload: 'logs' },
+    ],
+    reactCode: `<TabsMorph id="tabs-morph" />`,
+    joploCode: `flow('Switch between service overview and live logs', { start: '/worker' })
+  .select('tabs-morph', 'Live Tail')`,
+    render: () => <TabsMorph id="tabs-morph" />,
+  },
+  {
+    id: 'audio-wave-trim',
+    name: 'WaveTrim',
+    gesture: 'ai',
+    gestureLabel: 'AI & Media · Waveform Trimmer',
+    summary: '24-bar static-safe audio waveform with adjustable in/out trim window and synthesized slice preview.',
+    sounds: ['scrub', 'chime'],
+    agentActions: [
+      { label: 'Tighten Trim (5.6s→12.8s)', action: 'tightenTrim' },
+      { label: 'Reset Full Window', action: 'resetTrim' },
+    ],
+    reactCode: `<AudioWaveTrim id="audio-wave-trim" />`,
+    joploCode: `flow('Trim voiceover take', { start: '/voice' })
+  .click('audio-wave-trim', 'Tighten voiceover trim window')`,
+    render: () => <AudioWaveTrim id="audio-wave-trim" />,
+  },
+  {
+    id: 'code-diff-reveal',
+    name: 'CodePatchMorph',
+    gesture: 'ai',
+    gestureLabel: 'AI & Media · Patch Apply Morph',
+    summary: 'Unified AI code diff card that collapses deleted lines into clean applied CSS with one-click Undo.',
+    sounds: ['paid', 'tap'],
+    agentActions: [
+      { label: 'Apply AI Patch', action: 'apply' },
+      { label: 'Revert to Diff', action: 'revert' },
+    ],
+    reactCode: `<CodeDiffReveal
+  id="code-diff-reveal"
+  defaultApplied={false}
+/>`,
+    joploCode: `flow('Accept AI code patch', { start: '/review' })
+  .click('code-diff-reveal', 'Apply tokens.css patch')`,
+    render: () => <CodeDiffReveal id="code-diff-reveal" />,
+  },
+  {
+    id: 'skeleton-morph',
+    name: 'SkeletonMorph',
+    gesture: 'ai',
+    gestureLabel: 'AI & Media · Shimmer → Card',
+    summary: 'Geometry-matched shimmer skeleton that resolves smoothly into a high-density cluster status card.',
+    sounds: ['tap', 'pop'],
+    agentActions: [
+      { label: 'Show Loading Shimmer', action: 'setLoading', payload: true },
+      { label: 'Resolve Loaded Card', action: 'setLoading', payload: false },
+    ],
+    reactCode: `<SkeletonMorph
+  id="skeleton-morph"
+  defaultLoading={false}
+/>`,
+    joploCode: `flow('Transition from loading shimmer to live data', { start: '/cluster' })
+  .system('Cluster status fetched', set($.ui.loading, false))`,
+    render: () => <SkeletonMorph id="skeleton-morph" />,
+  },
+  {
+    id: 'transfer-list',
+    name: 'SourceTransfer',
+    gesture: 'workspace',
+    gestureLabel: 'Workspace · Dual-Bucket Transfer',
+    summary: 'One-click transfer between Available and Active MCP data bindings with live connection counter.',
+    sounds: ['pop', 'tap', 'paid'],
+    agentActions: [
+      { label: 'Toggle Postgres', action: 'toggleSource', payload: 'Postgres' },
+      { label: 'Connect All Sources', action: 'connectAll' },
+    ],
+    reactCode: `<TransferList id="transfer-list" />`,
+    joploCode: `flow('Bind Postgres MCP source', { start: '/integrations' })
+  .click('transfer-list', 'Move Postgres into Active bindings')`,
+    render: () => <TransferList id="transfer-list" />,
+  },
 ];
 
 function OdometerPlayground() {
@@ -336,6 +647,7 @@ function OdometerPlayground() {
 function BenchInner() {
   const { theme, fill, sound, animate, setTheme, setFill, setSound, setAnimate } = useJuice();
   const [category, setCategory] = useState<GestureCategory>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string>('scrub-panel');
   const [showSoundStrip, setShowSoundStrip] = useState<boolean>(true);
   const [codeTab, setCodeTab] = useState<'react' | 'joplo'>('react');
@@ -343,9 +655,17 @@ function BenchInner() {
   const [agentTick, setAgentTick] = useState<number>(0);
 
   const filteredBlocks = useMemo(() => {
-    if (category === 'all') return BLOCK_CATALOG;
-    return BLOCK_CATALOG.filter((b) => b.gesture === category);
-  }, [category]);
+    const q = searchQuery.trim().toLowerCase();
+    return BLOCK_CATALOG.filter((b) => {
+      const catMatch = category === 'all' || b.gesture === category;
+      const searchMatch =
+        !q ||
+        b.name.toLowerCase().includes(q) ||
+        b.gestureLabel.toLowerCase().includes(q) ||
+        b.summary.toLowerCase().includes(q);
+      return catMatch && searchMatch;
+    });
+  }, [category, searchQuery]);
 
   const selectedBlock = useMemo(
     () => BLOCK_CATALOG.find((b) => b.id === selectedId) ?? BLOCK_CATALOG[0]!,
@@ -384,7 +704,7 @@ function BenchInner() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="bench-title">Juice</span>
-                <Badge tone="signal">v0.1 · Bench</Badge>
+                <Badge tone="signal">v0.2 · 28 Blocks</Badge>
               </div>
               <div className="bench-subtitle">
                 Tactile React UI Blocks · Headless Behaviors · 3KB Web Audio Synth · Joplo Ready
@@ -504,15 +824,57 @@ function BenchInner() {
                 { value: 'drag', label: 'Drag' },
                 { value: 'hover', label: 'Hover' },
                 { value: 'type', label: 'Type' },
-                { value: 'ai', label: 'AI & Data' },
+                { value: 'workspace', label: 'Workspace' },
+                { value: 'ai', label: 'AI & Media' },
               ]}
               value={category}
               onChange={setCategory}
             />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--juice-mute)' }}>
-              <span>Every block is live on the canvas — drag, type, or drive via</span>
-              <Kbd>__juiceAgent</Kbd>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                height: 32,
+                padding: '0 10px',
+                borderRadius: 10,
+                background: 'var(--juice-w6)',
+                minWidth: 210,
+              }}
+            >
+              <Search size={13} style={{ color: 'var(--juice-mute)' }} />
+              <input
+                type="text"
+                aria-label="Filter blocks"
+                placeholder="Filter 28 blocks…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  border: 0,
+                  background: 'transparent',
+                  color: 'var(--juice-ink)',
+                  font: 'inherit',
+                  fontSize: 12.5,
+                  outline: 'none',
+                  width: '100%',
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    border: 0,
+                    background: 'transparent',
+                    color: 'var(--juice-mute)',
+                    cursor: 'pointer',
+                    fontSize: 11,
+                  }}
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
 

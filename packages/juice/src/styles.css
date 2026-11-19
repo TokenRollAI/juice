@@ -941,3 +941,605 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   pointer-events: none;
 }
+
+/* ── 13. OtpField (Concentric 6-Digit Verification) ─────────────── */
+
+.j-otp-card {
+  width: 312px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.j-otp-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.j-otp-slot {
+  width: 100%;
+  height: 44px;
+  border-radius: 11px;
+  border: 0;
+  background: var(--juice-w6);
+  color: var(--fill-on);
+  font-family: var(--juice-font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 140ms var(--juice-out);
+}
+.j-otp-slot:focus {
+  background: var(--juice-w12);
+  box-shadow: 0 0 0 2px var(--juice-signal);
+  transform: translateY(-1px);
+}
+.j-otp-slot[data-filled="true"] {
+  background: var(--juice-w12);
+}
+
+/* ── 14. PassStrength (Blur-to-Clear Reveal + Entropy Meter) ────── */
+
+.j-pass-card {
+  width: 312px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.j-pass-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  padding: 0 6px 0 12px;
+  border-radius: 12px;
+  background: var(--juice-w6);
+}
+.j-pass-input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--fill-on);
+  font-family: var(--juice-font-mono);
+  font-size: 13.5px;
+  outline: none;
+  transition: filter 200ms ease;
+}
+.j-pass-input[data-masked="true"] {
+  filter: blur(3.5px);
+  letter-spacing: 0.08em;
+}
+.j-pass-bars {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.j-pass-bar {
+  height: 5px;
+  border-radius: 99px;
+  background: var(--juice-w12);
+  transition: background-color 200ms ease;
+}
+
+/* ── 15. TimeSlotPicker (StandingCalendar + Slot Matrix) ────────── */
+
+.j-slot-card {
+  width: 316px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.j-day-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.j-day-btn {
+  border: 0;
+  border-radius: 11px;
+  background: var(--juice-w6);
+  color: var(--juice-soft);
+  padding: 7px 4px;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: background-color 140ms ease, color 140ms ease, transform 130ms var(--juice-out);
+}
+.j-day-btn[data-active="true"] {
+  background: var(--fill-on);
+  color: var(--fill-slab);
+}
+.j-day-btn:active {
+  transform: scale(0.95);
+}
+.j-time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+}
+.j-time-pill {
+  height: 34px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--juice-w6);
+  color: var(--fill-on);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 11px;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.j-time-pill[data-selected="true"] {
+  background: color-mix(in srgb, var(--juice-signal) 16%, var(--fill-slab));
+  color: var(--juice-signal);
+  font-weight: 600;
+}
+
+/* ── 16. RadialDial (Rotary Arc Gauge & Hardware Scrub Dial) ────── */
+
+.j-dial-card {
+  width: 304px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.j-dial-stage {
+  position: relative;
+  height: 124px;
+  border-radius: 14px;
+  background: var(--juice-w6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+/* ── 17. SwipeCard (Inbox Action Reveal List) ───────────────────── */
+
+.j-swipe-card {
+  width: 316px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.j-swipe-row-wrap {
+  position: relative;
+  height: 52px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--juice-w12);
+}
+.j-swipe-under {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.j-swipe-surface {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  background: var(--juice-w6);
+  border-radius: 14px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: transform 220ms var(--juice-out), background-color 150ms ease;
+}
+
+/* ── 18. SelectionToolbar (Contextual Floating Format & AI Bar) ── */
+
+.j-sel-card {
+  width: 320px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.j-sel-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--fill-on);
+  color: var(--fill-slab);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.22);
+}
+.j-sel-tool {
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.78;
+  transition: opacity 130ms ease, background-color 130ms ease;
+}
+.j-sel-tool:hover,
+.j-sel-tool[data-active="true"] {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.24);
+}
+
+/* ── 19. DataGrid (High-Density Inline-Edit Operator Table) ─────── */
+
+.j-grid-card {
+  width: 332px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.j-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.j-grid-table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--juice-mute);
+  padding: 6px 8px;
+}
+.j-grid-table td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--juice-edge);
+  font-variant-numeric: tabular-nums;
+}
+.j-grid-row[data-selected="true"] {
+  background: var(--juice-w6);
+}
+.j-inline-input {
+  width: 72px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 0;
+  background: var(--juice-w12);
+  color: var(--fill-on);
+  font: inherit;
+  font-family: var(--juice-font-mono);
+  font-size: 12px;
+  outline: 2px solid var(--juice-signal);
+}
+
+/* ── 20. TreeExplorer (Hierarchical Keyboard File Tree) ─────────── */
+
+.j-tree-card {
+  width: 312px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.j-tree-row {
+  width: 100%;
+  height: 31px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--juice-soft);
+  font: inherit;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px;
+  cursor: pointer;
+  text-align: left;
+}
+.j-tree-row:hover {
+  background: var(--juice-w6);
+  color: var(--fill-on);
+}
+.j-tree-row[data-active="true"] {
+  background: var(--juice-w12);
+  color: var(--fill-on);
+  font-weight: 500;
+}
+
+/* ── 21. ResizableSplit (Dual-Pane Workspace Splitter) ──────────── */
+
+.j-resize-card {
+  width: 320px;
+  padding: 6px;
+}
+.j-resize-box {
+  position: relative;
+  height: 152px;
+  border-radius: 14px;
+  background: var(--juice-w6);
+  display: flex;
+  overflow: hidden;
+  touch-action: none;
+}
+.j-resize-handle {
+  width: 12px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  flex-shrink: 0;
+  z-index: 2;
+}
+.j-resize-pill {
+  width: 4px;
+  height: 32px;
+  border-radius: 99px;
+  background: var(--juice-faint);
+  transition: background-color 140ms ease, height 140ms var(--juice-out);
+}
+.j-resize-handle:hover .j-resize-pill,
+.j-resize-handle[data-held="true"] .j-resize-pill {
+  background: var(--fill-on);
+  height: 44px;
+}
+
+/* ── 22. FilterBar (Faceted Token Filter & Operator Cycler) ─────── */
+
+.j-filter-card {
+  width: 324px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.j-filter-token {
+  display: inline-flex;
+  align-items: center;
+  height: 27px;
+  border-radius: 8px;
+  background: var(--juice-w6);
+  overflow: hidden;
+  font-size: 12px;
+}
+.j-filter-token-key {
+  padding: 0 7px;
+  color: var(--juice-mute);
+}
+.j-filter-token-val {
+  height: 100%;
+  border: 0;
+  background: var(--juice-w12);
+  color: var(--fill-on);
+  font: inherit;
+  font-weight: 500;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+/* ── 23. DrawerSheet (Vaul-Style Scaled Backdrop Sheet) ─────────── */
+
+.j-drawer-card {
+  width: 312px;
+  padding: 6px;
+}
+.j-drawer-viewport {
+  position: relative;
+  height: 176px;
+  border-radius: 14px;
+  background: #0e0f12;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.j-drawer-backdrop-stage {
+  flex: 1;
+  background: var(--fill-slab);
+  color: var(--fill-on);
+  padding: 14px;
+  border-radius: 14px;
+  transition: transform 260ms var(--juice-out), opacity 260ms ease, border-radius 260ms ease;
+  transform-origin: top center;
+}
+.j-drawer-viewport[data-open="true"] .j-drawer-backdrop-stage {
+  transform: scale(0.93) translateY(4px);
+  opacity: 0.65;
+  border-radius: 12px;
+}
+.j-drawer-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--fill-slab);
+  color: var(--fill-on);
+  border-radius: 16px 16px 14px 14px;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--juice-edge);
+  padding: 8px 14px 12px;
+  transform: translateY(102%);
+  transition: transform 260ms var(--juice-pop);
+}
+.j-drawer-viewport[data-open="true"] .j-drawer-sheet {
+  transform: translateY(0%);
+}
+
+/* ── 24. TabsMorph (Shared Pill Indicator Workspace Tabs) ───────── */
+
+.j-tabs-card {
+  width: 316px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.j-tabs-panel {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--juice-w6);
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* ── 25. AudioWaveTrim (Waveform Scrub & Handle Trimmer) ────────── */
+
+.j-trim-card {
+  width: 320px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.j-trim-track {
+  position: relative;
+  height: 64px;
+  border-radius: 13px;
+  background: var(--juice-w6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  overflow: hidden;
+}
+.j-trim-window {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--juice-signal) 15%, transparent);
+  border-left: 3px solid var(--juice-signal);
+  border-right: 3px solid var(--juice-signal);
+  pointer-events: none;
+}
+
+/* ── 26. CodeDiffReveal (AI Code Patch Apply & Undo Morph) ──────── */
+
+.j-diff-card {
+  width: 328px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.j-diff-code {
+  font-family: var(--juice-font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  border-radius: 12px;
+  background: var(--juice-w6);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.j-diff-line {
+  padding: 1px 6px;
+  border-radius: 5px;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.j-diff-line[data-kind="del"] {
+  background: color-mix(in srgb, var(--juice-danger) 14%, transparent);
+  color: var(--juice-danger);
+}
+.j-diff-line[data-kind="add"] {
+  background: color-mix(in srgb, var(--juice-ok) 15%, transparent);
+  color: var(--juice-ok);
+}
+
+/* ── 27. SkeletonMorph (Concentric Shimmer -> Live Card) ────────── */
+
+.j-skel-card {
+  width: 312px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.j-skel-bar {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--juice-w6) 25%,
+    var(--juice-w12) 50%,
+    var(--juice-w6) 75%
+  );
+  background-size: 200% 100%;
+  animation: j-shimmer 1.4s infinite;
+}
+@keyframes j-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ── 28. TransferList (Dual-Bucket Source Connector Transfer) ───── */
+
+.j-transfer-card {
+  width: 328px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.j-transfer-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.j-transfer-col {
+  border-radius: 13px;
+  background: var(--juice-w6);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 128px;
+}
+.j-transfer-item {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 0;
+  background: var(--fill-slab);
+  color: var(--fill-on);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: transform 130ms var(--juice-out);
+}
+.j-transfer-item:active {
+  transform: scale(0.96);
+}
+
