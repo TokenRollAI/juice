@@ -1,3 +1,4 @@
+"use client";
 import {
   forwardRef,
   useEffect,
@@ -21,6 +22,7 @@ import {
   FileCode2,
   Loader2,
   Mic,
+  Minus,
   MoveHorizontal,
   Paperclip,
   RotateCcw,
@@ -52,20 +54,142 @@ export function Kbd({ children, className, ...rest }: HTMLAttributes<HTMLElement
   );
 }
 
+export type BadgeTone = 'neutral' | 'signal' | 'ok' | 'warn' | 'danger' | 'info';
+export type BadgeVariant = 'soft' | 'solid' | 'outline';
+export type BadgeSize = 'xs' | 'sm' | 'md';
+
 export function Badge({
   tone = 'neutral',
+  variant = 'soft',
+  size = 'sm',
   children,
   className,
   ...rest
 }: HTMLAttributes<HTMLSpanElement> & {
-  tone?: 'neutral' | 'ok' | 'warn' | 'danger' | 'signal';
+  tone?: BadgeTone;
+  variant?: BadgeVariant;
+  size?: BadgeSize;
 }) {
   return (
-    <span className={clsx('j-badge', className)} data-tone={tone} {...rest}>
+    <span
+      className={clsx('j-badge', className)}
+      data-tone={tone}
+      data-variant={variant}
+      data-size={size}
+      {...rest}
+    >
       {children}
     </span>
   );
 }
+
+export type TagProps = Omit<HTMLAttributes<HTMLElement>, 'onSelect'> & {
+  selected?: boolean;
+  onSelect?: () => void;
+  onRemove?: () => void;
+  removeLabel?: string;
+  icon?: ReactNode;
+  tone?: BadgeTone;
+  size?: BadgeSize;
+  disabled?: boolean;
+};
+
+export function Tag({
+  selected = false,
+  onSelect,
+  onRemove,
+  removeLabel = 'Remove',
+  icon,
+  tone = 'neutral',
+  size = 'sm',
+  disabled = false,
+  className,
+  children,
+  onClick,
+  ...rest
+}: TagProps) {
+  const { playSound } = useJuice();
+
+  const handleSelect = () => {
+    if (disabled) return;
+    playSound('tap');
+    onSelect?.();
+  };
+
+  const handleRemove = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (disabled) return;
+    playSound('tap');
+    onRemove?.();
+  };
+
+  if (onSelect && !onRemove) {
+    return (
+      <button
+        type="button"
+        {...(rest as ButtonHTMLAttributes<HTMLButtonElement>)}
+        disabled={disabled}
+        aria-pressed={selected}
+        data-tone={tone}
+        data-size={size}
+        data-selected={selected ? 'true' : undefined}
+        data-interactive="true"
+        className={clsx('j-tag', className)}
+        onClick={(event) => {
+          onClick?.(event);
+          if (!event.defaultPrevented) handleSelect();
+        }}
+      >
+        {icon}
+        <span>{children}</span>
+      </button>
+    );
+  }
+
+  return (
+    <span
+      {...rest}
+      data-tone={tone}
+      data-size={size}
+      data-selected={selected ? 'true' : undefined}
+      data-disabled={disabled ? 'true' : undefined}
+      data-interactive={onSelect ? 'true' : undefined}
+      className={clsx('j-tag', className)}
+      onClick={onClick}
+    >
+      {onSelect ? (
+        <button
+          type="button"
+          className="j-tag-main"
+          disabled={disabled}
+          aria-pressed={selected}
+          onClick={handleSelect}
+        >
+          {icon}
+          <span>{children}</span>
+        </button>
+      ) : (
+        <>
+          {icon}
+          <span>{children}</span>
+        </>
+      )}
+      {onRemove && (
+        <button
+          type="button"
+          className="j-tag-remove"
+          aria-label={removeLabel}
+          disabled={disabled}
+          onClick={handleRemove}
+        >
+          <X size={11} aria-hidden="true" />
+        </button>
+      )}
+    </span>
+  );
+}
+
+export const Chip = Tag;
 
 export type SegmentedOption<T extends string = string> = {
   value: T;
@@ -157,16 +281,24 @@ export function SegmentedControl<T extends string = string>({
   );
 }
 
-type ToggleProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onChange'> & {
+type ToggleProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onChange' | 'value'> & {
   checked?: boolean;
   onChange?: (checked: boolean) => void;
   label?: ReactNode;
+  name?: string;
+  value?: string;
+  required?: boolean;
+};
+
+type CheckboxProps = ToggleProps & {
+  indeterminate?: boolean;
 };
 
 function ToggleButton({
   kind, buttonRef, id, checked: controlledChecked, defaultChecked = false, onChange,
-  className, disabled, onClick, children, label = children, ...rest
-}: ToggleProps & { kind: 'Switch' | 'Checkbox'; buttonRef: Ref<HTMLButtonElement> }) {
+  className, disabled, onClick, children, label = children,
+  name, value, required, indeterminate = false, ...rest
+}: CheckboxProps & { kind: 'Switch' | 'Checkbox'; buttonRef: Ref<HTMLButtonElement> }) {
   const { playSound } = useJuice();
   const [checked, setChecked] = useControllableState({ value: controlledChecked, defaultValue: defaultChecked, onChange });
   const toggle = () => {
@@ -174,12 +306,28 @@ function ToggleButton({
     playSound(checked ? 'tap' : 'latch');
     setChecked(!checked);
   };
-  useJuiceAgentNode(id, kind, { checked }, {
+  useJuiceAgentNode(id, kind, { checked, indeterminate: kind === 'Checkbox' ? indeterminate : undefined }, {
     toggle,
     set: (next: boolean) => { if (!disabled) setChecked(Boolean(next)); },
   });
 
   const isSwitch = kind === 'Switch';
+  const isIndeterminate = !isSwitch && indeterminate;
+  const hiddenInput = name ? (
+    <input
+      type="checkbox"
+      className="j-sr-only"
+      name={name}
+      value={value ?? 'on'}
+      checked={checked}
+      required={required}
+      disabled={disabled}
+      readOnly
+      tabIndex={-1}
+      aria-hidden="true"
+    />
+  ) : null;
+
   const button = (
     <button
       type="button"
@@ -189,24 +337,45 @@ function ToggleButton({
       ref={buttonRef}
       className={clsx(isSwitch ? 'j-switch' : 'j-checkbox', className)}
       disabled={disabled}
-      aria-checked={checked}
-      data-checked={checked}
+      aria-checked={isIndeterminate ? 'mixed' : checked}
+      data-checked={isIndeterminate ? 'indeterminate' : checked}
+      data-indeterminate={isIndeterminate ? 'true' : undefined}
       onClick={(event) => {
         onClick?.(event);
         if (!event.defaultPrevented) toggle();
       }}
     >
-      {isSwitch ? <i className="j-switch-thumb" /> : checked && <Check size={11} strokeWidth={2.75} aria-hidden="true" />}
+      {isSwitch ? (
+        <i className="j-switch-thumb" />
+      ) : isIndeterminate ? (
+        <Minus size={11} strokeWidth={2.75} aria-hidden="true" />
+      ) : (
+        checked && <Check size={11} strokeWidth={2.75} aria-hidden="true" />
+      )}
     </button>
   );
-  return label == null ? button : <label className="j-toggle-label">{button}{label}</label>;
+  if (label == null) {
+    return hiddenInput ? (
+      <span className="j-toggle-wrap">
+        {button}
+        {hiddenInput}
+      </span>
+    ) : button;
+  }
+  return (
+    <label className="j-toggle-label">
+      {button}
+      {hiddenInput}
+      {label}
+    </label>
+  );
 }
 
 export const Switch = forwardRef<HTMLButtonElement, ToggleProps>(function Switch(props, ref) {
   return <ToggleButton {...props} kind="Switch" buttonRef={ref} />;
 });
 
-export const Checkbox = forwardRef<HTMLButtonElement, ToggleProps>(function Checkbox(props, ref) {
+export const Checkbox = forwardRef<HTMLButtonElement, CheckboxProps>(function Checkbox(props, ref) {
   return <ToggleButton {...props} kind="Checkbox" buttonRef={ref} />;
 });
 
@@ -219,6 +388,7 @@ export function RollingNumber({
   prefix = '',
   suffix = '',
   decimals = 0,
+  format,
   className,
   style,
 }: {
@@ -226,15 +396,17 @@ export function RollingNumber({
   prefix?: string;
   suffix?: string;
   decimals?: number;
+  format?: (value: number) => string;
   className?: string;
   style?: CSSProperties;
 }) {
   const formatted = useMemo(() => {
+    if (format) return format(value);
     const fixed = Number.isFinite(value) ? value.toFixed(decimals) : '0';
     const [intPart = '0', decPart] = fixed.split('.');
     const withCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return decPart !== undefined ? `${withCommas}.${decPart}` : withCommas;
-  }, [value, decimals]);
+  }, [value, decimals, format]);
 
   const chars = useMemo(() => formatted.split(''), [formatted]);
 

@@ -1,15 +1,29 @@
+"use client";
 import {
-  createContext, useContext, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
-  type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent, type LabelHTMLAttributes,
-  type PointerEvent, type ReactNode, type Ref,
+  createContext, forwardRef, useCallback, useContext, useEffect, useId, useImperativeHandle, useMemo, useRef, useState,
+  type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type KeyboardEvent, type LabelHTMLAttributes,
+  type MouseEvent as ReactMouseEvent, type PointerEvent, type ReactElement, type ReactNode, type Ref, type RefObject,
 } from 'react';
+import { clsx } from 'clsx';
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowUpRight, Bold, Check, ChevronDown, Copy, Grid, Italic,
   Maximize2, MousePointerClick, Pin, RefreshCw, ShieldAlert, Trash2, Underline,
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
-import { useControllableState, useJuice, useJuiceAgentNode, useRovingFocus } from './behaviors.tsx';
+import {
+  chainEvent,
+  composeRefs,
+  renderSlottedElement,
+  useControllableState,
+  useIsomorphicLayoutEffect,
+  useJuice,
+  useJuiceAgentNode,
+  useRovingFocus,
+  type SlottableProps,
+} from './behaviors.tsx';
 import { Badge, Checkbox, Kbd, RollingNumber, SegmentedControl } from './components.tsx';
+import { placeFloating } from './components-portal-floating.tsx';
+import { JuicePortal, useBodyScrollLock } from './components-composable.tsx';
 
 const row = { display: 'flex', alignItems: 'center', gap: 6 } as const;
 const between = { ...row, justifyContent: 'space-between' } as const;
@@ -53,23 +67,161 @@ export function Label(props: LabelHTMLAttributes<HTMLLabelElement>) {
   return <label {...props} />;
 }
 
-export function Collapsible({ open, defaultOpen = false, onOpenChange, trigger, children }: {
-  open?: boolean; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void;
-  trigger: ReactNode; children: ReactNode;
-}) {
+type CollapsibleContextValue = {
+  open: boolean;
+  setOpen: (next: boolean) => void;
+  disabled: boolean;
+  contentId: string;
+};
+
+const CollapsibleContext = createContext<CollapsibleContextValue | null>(null);
+
+export type CollapsibleRootProps = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  disabled?: boolean;
+  children?: ReactNode;
+};
+
+function CollapsibleRoot({
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  disabled = false,
+  className,
+  children,
+  ...rest
+}: CollapsibleRootProps) {
+  const contentId = useId();
+  const [expanded, setExpanded] = useControllableState({
+    value: open,
+    defaultValue: defaultOpen,
+    onChange: onOpenChange,
+  });
+  const toggle = useCallback((next: boolean) => {
+    if (!disabled) setExpanded(next);
+  }, [disabled, setExpanded]);
+
+  return (
+    <CollapsibleContext.Provider value={{ open: expanded, setOpen: toggle, disabled, contentId }}>
+      <div
+        {...rest}
+        className={clsx('j-collapsible', className)}
+        data-state={expanded ? 'open' : 'closed'}
+        data-disabled={disabled ? 'true' : undefined}
+      >
+        {children}
+      </div>
+    </CollapsibleContext.Provider>
+  );
+}
+
+type CollapsibleTriggerProps = ButtonHTMLAttributes<HTMLButtonElement> &
+  SlottableProps<ButtonHTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> }>;
+
+const CollapsibleTrigger = forwardRef<HTMLButtonElement, CollapsibleTriggerProps>(function CollapsibleTrigger(
+  { asChild, render, disabled, onClick, className, children, ...rest },
+  forwardedRef,
+) {
+  const ctx = useContext(CollapsibleContext);
+  if (!ctx) throw new Error('Collapsible.Trigger requires Collapsible.Root');
+  const isDisabled = Boolean(ctx.disabled || disabled);
+  const triggerProps: ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown> = {
+    ...rest,
+    disabled: isDisabled,
+    'aria-expanded': ctx.open,
+    'aria-controls': ctx.contentId,
+    'data-state': ctx.open ? 'open' : 'closed',
+    className: clsx('j-collapsible-trigger', className),
+    onClick: chainEvent(onClick, () => {
+      if (!isDisabled) ctx.setOpen(!ctx.open);
+    }),
+  };
+
+  if (typeof render === 'function') return render({ type: 'button', ...triggerProps, children, ref: forwardedRef });
+  const slotEl = asChild ? children : render;
+  if (slotEl !== undefined) {
+    return renderSlottedElement(slotEl as ReactElement, triggerProps, forwardedRef, { asChild, children });
+  }
+  return (
+    <button type="button" {...triggerProps} ref={forwardedRef}>
+      {children}
+    </button>
+  );
+});
+
+export type CollapsibleContentProps = HTMLAttributes<HTMLDivElement> & {
+  preview?: ReactNode;
+};
+
+const CollapsibleContent = forwardRef<HTMLDivElement, CollapsibleContentProps>(function CollapsibleContent(
+  { preview, className, children, ...rest },
+  forwardedRef,
+) {
+  const ctx = useContext(CollapsibleContext);
+  if (!ctx) throw new Error('Collapsible.Content requires Collapsible.Root');
+  return (
+    <div
+      {...rest}
+      ref={forwardedRef}
+      id={rest.id ?? ctx.contentId}
+      className={clsx('j-collapsible-content', className)}
+      data-state={ctx.open ? 'open' : 'closed'}
+    >
+      {preview != null && !ctx.open && <div className="j-collapsible-preview">{preview}</div>}
+      <div
+        className="j-collapsible-grid"
+        data-state={ctx.open ? 'open' : 'closed'}
+        aria-hidden={!ctx.open}
+        inert={!ctx.open ? true : undefined}
+      >
+        <div className="j-collapsible-inner">{children}</div>
+      </div>
+    </div>
+  );
+});
+
+type LegacyCollapsibleProps = {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger: ReactNode;
+  children: ReactNode;
+  className?: string;
+};
+
+function LegacyCollapsible({ open, defaultOpen = false, onOpenChange, trigger, children, className }: LegacyCollapsibleProps) {
   const contentId = useId();
   const [expanded, setExpanded] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
   return (
-    <div className="j-acc-item" data-state={expanded ? 'open' : 'closed'}>
+    <div className={clsx('j-acc-item', className)} data-state={expanded ? 'open' : 'closed'}>
       <button type="button" className="j-acc-trigger" aria-expanded={expanded} aria-controls={contentId}
         onClick={() => setExpanded(!expanded)}>
         {trigger}
         <ChevronDown aria-hidden="true" size={14} style={{ rotate: expanded ? '180deg' : undefined }} />
       </button>
-      <div id={contentId} className="j-acc-body" hidden={!expanded}>{children}</div>
+      <div id={contentId} className="j-collapsible-grid" data-state={expanded ? 'open' : 'closed'} aria-hidden={!expanded} inert={!expanded ? true : undefined}>
+        <div className="j-collapsible-inner">
+          <div className="j-acc-body">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }
+
+function CollapsibleComponent(props: LegacyCollapsibleProps | CollapsibleRootProps) {
+  if ('trigger' in props && props.trigger !== undefined) {
+    return <LegacyCollapsible {...(props as LegacyCollapsibleProps)} />;
+  }
+  return <CollapsibleRoot {...(props as CollapsibleRootProps)} />;
+}
+
+export const Collapsible = Object.assign(CollapsibleComponent, {
+  Root: CollapsibleRoot,
+  Trigger: CollapsibleTrigger,
+  Content: CollapsibleContent,
+});
 
 // Menus share selection, positioning, and keyboard behavior.
 
@@ -115,7 +267,7 @@ function MenuPanel({ id, label, entries, anchor, onClose, initialFocus = 'first'
 
   const roving = useRovingFocus({ items: itemIds, active: activeId ?? '', onSelect: focusItem });
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const element = panel.current;
     if (!element) return;
     element.showPopover?.();
@@ -125,7 +277,7 @@ function MenuPanel({ id, label, entries, anchor, onClose, initialFocus = 'first'
     (firstItem ?? element).focus({ preventScroll: true });
   }, [initialFocus]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const element = panel.current;
     if (!element) return;
     const position = () => {
@@ -239,10 +391,346 @@ function useOutsidePointer(ref: { current: HTMLElement | null }, enabled: boolea
   }, [ref, enabled]);
 }
 
-export function ContextMenu({ trigger, children, items, open, onOpenChange, label = 'Context menu' }: {
-  trigger: ReactNode; children: ReactNode; items: readonly MenuEntry[];
-  open?: boolean; onOpenChange?: (open: boolean) => void; label?: string;
+type ComposableContextMenuValue = {
+  id: string;
+  open: boolean;
+  setOpen: (next: boolean) => void;
+  point: { x: number; y: number } | null;
+  openAt: (point: { x: number; y: number } | null) => void;
+  triggerRef: RefObject<HTMLElement | null>;
+  contentRef: RefObject<HTMLDivElement | null>;
+};
+
+const ComposableContextMenuContext = createContext<ComposableContextMenuValue | null>(null);
+const ContextMenuIndicatorContext = createContext<{ checked: boolean | 'indeterminate' } | null>(null);
+const ContextMenuRadioContext = createContext<{ value: string | undefined; onValueChange: (val: string) => void } | null>(null);
+
+function ContextMenuRoot({
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  children,
+}: {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: ReactNode;
 }) {
+  const id = useId();
+  const [open, setOpenState] = useControllableState({ value: controlledOpen, defaultValue: defaultOpen, onChange: onOpenChange });
+  const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
+  const triggerRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const setOpen = useCallback((next: boolean) => {
+    setOpenState(next);
+    if (!next) setPoint(null);
+  }, [setOpenState]);
+
+  const openAt = useCallback((loc: { x: number; y: number } | null) => {
+    setPoint(loc);
+    setOpenState(true);
+  }, [setOpenState]);
+
+  return (
+    <ComposableContextMenuContext.Provider value={{ id, open, setOpen, point, openAt, triggerRef, contentRef }}>
+      {children}
+    </ComposableContextMenuContext.Provider>
+  );
+}
+
+const ContextMenuTrigger = forwardRef<HTMLElement, HTMLAttributes<HTMLElement> & SlottableProps<HTMLAttributes<HTMLElement> & { ref?: Ref<HTMLElement> }>>(
+  function ContextMenuTrigger({ asChild, render, children, onContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onKeyDown, ...rest }, forwardedRef) {
+    const ctx = useContext(ComposableContextMenuContext);
+    if (!ctx) throw new Error('ContextMenu.Trigger requires ContextMenu.Root');
+    const pressRef = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
+
+    const cancelPress = () => {
+      if (pressRef.current) clearTimeout(pressRef.current.timer);
+      pressRef.current = null;
+    };
+    useEffect(() => cancelPress, []);
+
+    const triggerProps: HTMLAttributes<HTMLElement> = {
+      ...rest,
+      onContextMenu: chainEvent(onContextMenu, (event) => {
+        event.preventDefault();
+        cancelPress();
+        ctx.openAt({ x: event.clientX, y: event.clientY });
+      }),
+      onPointerDown: chainEvent(onPointerDown, (event) => {
+        if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+        cancelPress();
+        const loc = { x: event.clientX, y: event.clientY };
+        pressRef.current = { ...loc, timer: setTimeout(() => ctx.openAt(loc), 550) };
+      }),
+      onPointerMove: chainEvent(onPointerMove, (event) => {
+        if (pressRef.current && Math.hypot(event.clientX - pressRef.current.x, event.clientY - pressRef.current.y) > 8) {
+          cancelPress();
+        }
+      }),
+      onPointerUp: chainEvent(onPointerUp, cancelPress),
+      onPointerCancel: chainEvent(onPointerCancel, cancelPress),
+      onKeyDown: chainEvent(onKeyDown, (event) => {
+        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+          event.preventDefault();
+          ctx.openAt(null);
+        }
+      }),
+    };
+
+    const mergedRef = composeRefs<HTMLElement>((node) => { ctx.triggerRef.current = node; }, forwardedRef);
+    if (typeof render === 'function') return render({ ...triggerProps, children, ref: mergedRef });
+    const slotEl = asChild ? children : render;
+    if (slotEl !== undefined) {
+      return renderSlottedElement(slotEl as ReactElement, triggerProps, mergedRef, { asChild, children });
+    }
+    return <div {...triggerProps} ref={mergedRef as Ref<HTMLDivElement>}>{children}</div>;
+  },
+);
+
+function ContextMenuPortal({ children, container }: { children?: ReactNode; container?: Element | null }) {
+  const ctx = useContext(ComposableContextMenuContext);
+  if (!ctx) throw new Error('ContextMenu.Portal requires ContextMenu.Root');
+  return <JuicePortal open={ctx.open} container={container}>{children}</JuicePortal>;
+}
+
+const ContextMenuContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement> & { loop?: boolean }>(
+  function ContextMenuContent({ loop = true, className, style, onKeyDown, ...rest }, forwardedRef) {
+    const ctx = useContext(ComposableContextMenuContext);
+    if (!ctx) throw new Error('ContextMenu.Content requires ContextMenu.Root');
+    const typeahead = useRef({ value: '', at: 0 });
+
+    useIsomorphicLayoutEffect(() => {
+      const node = ctx.contentRef.current;
+      if (!ctx.open || !node) return;
+      const doc = node.ownerDocument;
+      const win = doc.defaultView;
+      if (!win) return;
+      const position = () => {
+        const anchorRect = ctx.point
+          ? { left: ctx.point.x, top: ctx.point.y, right: ctx.point.x, bottom: ctx.point.y, width: 0, height: 0 }
+          : ctx.triggerRef.current?.getBoundingClientRect() ?? { left: 16, top: 16, right: 16, bottom: 16, width: 0, height: 0 };
+        const { x, y, side } = placeFloating(
+          anchorRect,
+          { width: node.offsetWidth, height: node.offsetHeight },
+          { width: doc.documentElement.clientWidth, height: doc.documentElement.clientHeight },
+          'bottom-start',
+          2,
+        );
+        node.style.top = `${y}px`;
+        node.style.left = `${x}px`;
+        node.dataset.side = side;
+      };
+      position();
+      const items = Array.from(node.querySelectorAll<HTMLElement>('[role="menuitem"],[role="menuitemcheckbox"],[role="menuitemradio"]'))
+        .filter((el) => !el.matches(':disabled,[aria-disabled="true"]'));
+      (items[0] ?? node).focus({ preventScroll: true });
+
+      const onPointerDown = (event: globalThis.PointerEvent) => {
+        if (!event.composedPath().includes(node)) ctx.setOpen(false);
+      };
+      const onEscape = (event: globalThis.KeyboardEvent) => {
+        if (event.key !== 'Escape' || event.defaultPrevented) return;
+        event.preventDefault();
+        ctx.setOpen(false);
+        ctx.triggerRef.current?.focus({ preventScroll: true });
+      };
+      win.addEventListener('resize', position);
+      doc.addEventListener('pointerdown', onPointerDown, true);
+      doc.addEventListener('keydown', onEscape);
+      return () => {
+        win.removeEventListener('resize', position);
+        doc.removeEventListener('pointerdown', onPointerDown, true);
+        doc.removeEventListener('keydown', onEscape);
+      };
+    }, [ctx.open, ctx.point, ctx.contentRef, ctx.triggerRef, ctx.setOpen]);
+
+    if (!ctx.open) return null;
+    return (
+      <div
+        role="menu"
+        tabIndex={-1}
+        {...rest}
+        id={rest.id ?? ctx.id}
+        ref={composeRefs(ctx.contentRef, forwardedRef)}
+        className={clsx('j-floating-pop', 'j-menu-list', 'j-menu-content', className)}
+        style={style}
+        onKeyDown={chainEvent(onKeyDown, (event) => {
+          const items = Array.from(
+            event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"],[role="menuitemcheckbox"],[role="menuitemradio"]'),
+          ).filter((el) => !el.matches(':disabled,[aria-disabled="true"]'));
+          if (items.length === 0) return;
+          const idx = items.indexOf(event.target as HTMLElement);
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+            event.preventDefault();
+            let target: HTMLElement | undefined;
+            if (event.key === 'Home') target = items[0];
+            else if (event.key === 'End') target = items.at(-1);
+            else if (event.key === 'ArrowDown') target = loop ? items[(idx + 1) % items.length] : items[Math.min(items.length - 1, idx + 1)];
+            else target = loop ? items[(idx - 1 + items.length) % items.length] : items[Math.max(0, idx - 1)];
+            target?.focus();
+            return;
+          }
+          if (event.key === 'Tab') {
+            ctx.setOpen(false);
+            return;
+          }
+          if (event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            const ch = event.key.toLowerCase();
+            const now = Date.now();
+            const prev = now - typeahead.current.at < 700 ? typeahead.current.value : '';
+            const query = prev === ch ? ch : prev + ch;
+            typeahead.current = { value: query, at: now };
+            const start = query.length === 1 ? idx + 1 : 0;
+            const ordered = [...items.slice(start), ...items.slice(0, start)];
+            const match = ordered.find((el) => (el.textContent ?? '').trim().toLowerCase().startsWith(query));
+            if (match) {
+              event.preventDefault();
+              match.focus();
+            }
+          }
+        })}
+      />
+    );
+  },
+);
+
+type ContextMenuItemProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onSelect'> &
+  SlottableProps<ButtonHTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> }> & {
+    tone?: 'neutral' | 'danger';
+    onSelect?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  };
+
+const ContextMenuItem = forwardRef<HTMLButtonElement, ContextMenuItemProps>(function ContextMenuItem(
+  { tone, disabled, onSelect, onClick, asChild, render, className, children, ...rest },
+  forwardedRef,
+) {
+  const ctx = useContext(ComposableContextMenuContext);
+  if (!ctx) throw new Error('ContextMenu.Item requires ContextMenu.Root');
+  const itemProps: ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown> = {
+    tabIndex: -1,
+    ...rest,
+    role: 'menuitem',
+    'data-tone': tone,
+    disabled,
+    'aria-disabled': disabled || undefined,
+    className: clsx('j-menu-item', className),
+    onClick: chainEvent(onClick, (event: ReactMouseEvent<HTMLButtonElement>) => {
+      if (disabled) return;
+      onSelect?.(event);
+      if (!event.defaultPrevented) ctx.setOpen(false);
+    }),
+  };
+  if (typeof render === 'function') return render({ type: 'button', ...itemProps, children, ref: forwardedRef });
+  const slotEl = asChild ? children : render;
+  if (slotEl !== undefined) {
+    return renderSlottedElement(slotEl as ReactElement, itemProps, forwardedRef, { asChild, children });
+  }
+  return <button type="button" {...itemProps} ref={forwardedRef}>{children}</button>;
+});
+
+const ContextMenuCheckboxItem = forwardRef<HTMLButtonElement, ContextMenuItemProps & { checked?: boolean | 'indeterminate'; onCheckedChange?: (checked: boolean) => void }>(
+  function ContextMenuCheckboxItem({ checked = false, onCheckedChange, disabled, onSelect, onClick, asChild, render, className, children, ...rest }, forwardedRef) {
+    const ctx = useContext(ComposableContextMenuContext);
+    if (!ctx) throw new Error('ContextMenu.CheckboxItem requires ContextMenu.Root');
+    const itemProps: ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown> = {
+      tabIndex: -1,
+      ...rest,
+      role: 'menuitemcheckbox',
+      'aria-checked': checked === 'indeterminate' ? 'mixed' : Boolean(checked),
+      disabled,
+      'aria-disabled': disabled || undefined,
+      className: clsx('j-menu-item', 'j-menu-check-item', className),
+      onClick: chainEvent(onClick, (event: ReactMouseEvent<HTMLButtonElement>) => {
+        if (disabled) return;
+        onCheckedChange?.(checked === 'indeterminate' ? true : !checked);
+        onSelect?.(event);
+        if (!event.defaultPrevented) ctx.setOpen(false);
+      }),
+    };
+    const inner = typeof render === 'function'
+      ? render({ type: 'button', ...itemProps, children, ref: forwardedRef })
+      : (asChild || render)
+        ? renderSlottedElement((asChild ? children : render) as ReactElement, itemProps, forwardedRef, { asChild, children })
+        : <button type="button" {...itemProps} ref={forwardedRef}>{children}</button>;
+    return <ContextMenuIndicatorContext.Provider value={{ checked }}>{inner}</ContextMenuIndicatorContext.Provider>;
+  },
+);
+
+function ContextMenuRadioGroup({ value, defaultValue, onValueChange, className, ...rest }: HTMLAttributes<HTMLDivElement> & { value?: string; defaultValue?: string; onValueChange?: (val: string) => void }) {
+  const [current, setCurrent] = useControllableState<string | undefined>({
+    value, defaultValue, onChange: (next) => { if (next !== undefined) onValueChange?.(next); },
+  });
+  return (
+    <ContextMenuRadioContext.Provider value={{ value: current, onValueChange: setCurrent }}>
+      <div role="group" {...rest} className={clsx('j-menu-group', className)} />
+    </ContextMenuRadioContext.Provider>
+  );
+}
+
+const ContextMenuRadioItem = forwardRef<HTMLButtonElement, ContextMenuItemProps & { value: string }>(
+  function ContextMenuRadioItem({ value, disabled, onSelect, onClick, asChild, render, className, children, ...rest }, forwardedRef) {
+    const ctx = useContext(ComposableContextMenuContext);
+    const group = useContext(ContextMenuRadioContext);
+    if (!ctx || !group) throw new Error('ContextMenu.RadioItem requires ContextMenu.RadioGroup');
+    const checked = group.value === value;
+    const itemProps: ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown> = {
+      tabIndex: -1,
+      ...rest,
+      role: 'menuitemradio',
+      'aria-checked': checked,
+      disabled,
+      'aria-disabled': disabled || undefined,
+      className: clsx('j-menu-item', 'j-menu-radio-item', className),
+      onClick: chainEvent(onClick, (event: ReactMouseEvent<HTMLButtonElement>) => {
+        if (disabled) return;
+        group.onValueChange(value);
+        onSelect?.(event);
+        if (!event.defaultPrevented) ctx.setOpen(false);
+      }),
+    };
+    const inner = typeof render === 'function'
+      ? render({ type: 'button', ...itemProps, children, ref: forwardedRef })
+      : (asChild || render)
+        ? renderSlottedElement((asChild ? children : render) as ReactElement, itemProps, forwardedRef, { asChild, children })
+        : <button type="button" {...itemProps} ref={forwardedRef}>{children}</button>;
+    return <ContextMenuIndicatorContext.Provider value={{ checked }}>{inner}</ContextMenuIndicatorContext.Provider>;
+  },
+);
+
+function ContextMenuItemIndicator({ forceMount = false, className, children, ...rest }: HTMLAttributes<HTMLSpanElement> & { forceMount?: boolean }) {
+  const ctx = useContext(ContextMenuIndicatorContext);
+  if (!forceMount && (!ctx || ctx.checked === false)) return null;
+  return <span {...rest} className={clsx('j-menu-indicator', className)} aria-hidden="true">{children ?? <Check size={13} />}</span>;
+}
+
+function ContextMenuShortcut({ className, ...rest }: HTMLAttributes<HTMLSpanElement>) {
+  return <span {...rest} className={clsx('j-menu-shortcut', className)} />;
+}
+
+function ContextMenuSeparator({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div role="separator" {...rest} className={clsx('j-menu-separator', className)} />;
+}
+
+function ContextMenuLabel({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div {...rest} className={clsx('j-menu-label', className)} />;
+}
+
+function ContextMenuGroup({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div role="group" {...rest} className={clsx('j-menu-group', className)} />;
+}
+
+type LegacyContextMenuProps = {
+  trigger: ReactNode;
+  children: ReactNode;
+  items: readonly MenuEntry[];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  label?: string;
+};
+
+function LegacyContextMenu({ trigger, children, items, open, onOpenChange, label = 'Context menu' }: LegacyContextMenuProps) {
   const menuId = useId();
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -300,6 +788,29 @@ export function ContextMenu({ trigger, children, items, open, onOpenChange, labe
     </div>
   );
 }
+
+function ContextMenuComponent(props: LegacyContextMenuProps | { open?: boolean; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void; children?: ReactNode }) {
+  if ('items' in props && Array.isArray(props.items)) {
+    return <LegacyContextMenu {...(props as LegacyContextMenuProps)} />;
+  }
+  return <ContextMenuRoot {...props} />;
+}
+
+export const ContextMenu = Object.assign(ContextMenuComponent, {
+  Root: ContextMenuRoot,
+  Trigger: ContextMenuTrigger,
+  Portal: ContextMenuPortal,
+  Content: ContextMenuContent,
+  Item: ContextMenuItem,
+  CheckboxItem: ContextMenuCheckboxItem,
+  RadioGroup: ContextMenuRadioGroup,
+  RadioItem: ContextMenuRadioItem,
+  ItemIndicator: ContextMenuItemIndicator,
+  Shortcut: ContextMenuShortcut,
+  Separator: ContextMenuSeparator,
+  Label: ContextMenuLabel,
+  Group: ContextMenuGroup,
+});
 
 export type MenubarMenu<T extends string> = { value: T; label: string; items: readonly MenuEntry[] };
 
@@ -403,7 +914,7 @@ export function NavigationMenu<T extends string>({ sections, value, defaultValue
     return Array.from(viewport.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? []);
   }
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!active || !focusContent) return;
     contentLinks()[0]?.focus();
     setFocusContent(false);
@@ -510,7 +1021,7 @@ function RovingButtons({ role, label, orientation, children }: {
     current.current = target;
   }
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!root.current) return;
     const sync = () => {
       const buttons = findButtons();
@@ -638,78 +1149,340 @@ export function ToggleGroupItem({ value, children, disabled, 'aria-label': ariaL
   );
 }
 
-export function AlertDialog({ open, defaultOpen = false, onOpenChange, trigger, title, description, action,
-  cancelLabel = 'Cancel', actionLabel = 'Confirm', dismissOnEscape = true }: {
-  open?: boolean; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void; trigger: ReactNode;
-  title: ReactNode; description: ReactNode; action: () => void;
-  cancelLabel?: string; actionLabel?: string; dismissOnEscape?: boolean;
-}) {
+// Composable AlertDialog built on JuicePortal (outside click does NOT dismiss, Cancel auto-focuses)
+type AlertDialogContextValue = {
+  id: string;
+  open: boolean;
+  setOpen: (next: boolean) => void;
+  dismissOnEscape: boolean;
+  triggerRef: RefObject<HTMLElement | null>;
+  cancelRef: RefObject<HTMLElement | null>;
+  contentRef: RefObject<HTMLDivElement | null>;
+  titleId: string | undefined;
+  setTitleId: (id: string | undefined) => void;
+  descriptionId: string | undefined;
+  setDescriptionId: (id: string | undefined) => void;
+};
+
+const AlertDialogContext = createContext<AlertDialogContextValue | null>(null);
+
+function useAlertDialogContext(slot: string): AlertDialogContextValue {
+  const ctx = useContext(AlertDialogContext);
+  if (!ctx) throw new Error(`AlertDialog.${slot} requires AlertDialog.Root`);
+  return ctx;
+}
+
+export type AlertDialogRootProps = {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  dismissOnEscape?: boolean;
+  children?: ReactNode;
+};
+
+function AlertDialogRoot({
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  dismissOnEscape = true,
+  children,
+}: AlertDialogRootProps) {
   const id = useId();
-  const dialog = useRef<HTMLDialogElement>(null);
-  const cancel = useRef<HTMLButtonElement>(null);
-  const confirm = useRef<HTMLButtonElement>(null);
-  const triggerButton = useRef<HTMLButtonElement>(null);
-  const [expanded, setExpanded] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
-  const { playSound } = useJuice();
+  const [open, setOpen] = useControllableState({ value: controlledOpen, defaultValue: defaultOpen, onChange: onOpenChange });
+  const triggerRef = useRef<HTMLElement>(null);
+  const cancelRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [titleId, setTitleId] = useState<string | undefined>();
+  const [descriptionId, setDescriptionId] = useState<string | undefined>();
 
-  useLayoutEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    if (expanded && !element.open) {
-      element.showModal();
-      cancel.current?.focus();
-    } else if (!expanded && element.open) {
-      element.close();
-      triggerButton.current?.focus();
-    }
-  }, [expanded]);
+  const value = useMemo<AlertDialogContextValue>(
+    () => ({
+      id, open, setOpen, dismissOnEscape, triggerRef, cancelRef, contentRef,
+      titleId, setTitleId, descriptionId, setDescriptionId,
+    }),
+    [descriptionId, dismissOnEscape, id, open, setOpen, titleId],
+  );
 
-  const dismiss = () => {
-    playSound('tap');
-    setExpanded(false);
+  return <AlertDialogContext.Provider value={value}>{children}</AlertDialogContext.Provider>;
+}
+
+type AlertSlotButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
+  SlottableProps<ButtonHTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> }>;
+
+const AlertDialogTrigger = forwardRef<HTMLButtonElement, AlertSlotButtonProps>(function AlertDialogTrigger(
+  { asChild, render, children, onClick, ...rest },
+  forwardedRef,
+) {
+  const ctx = useAlertDialogContext('Trigger');
+  const mergedRef = composeRefs<HTMLButtonElement>((node) => { ctx.triggerRef.current = node; }, forwardedRef);
+  const triggerProps: ButtonHTMLAttributes<HTMLButtonElement> = {
+    ...rest,
+    'aria-haspopup': 'dialog',
+    'aria-expanded': ctx.open,
+    'aria-controls': ctx.open ? ctx.id : undefined,
+    onClick: chainEvent(onClick, () => ctx.setOpen(true)),
   };
+  if (typeof render === 'function') return render({ type: 'button', ...triggerProps, children, ref: mergedRef });
+  const slotEl = asChild ? children : render;
+  if (slotEl !== undefined) return renderSlottedElement(slotEl as ReactElement, triggerProps, mergedRef, { asChild, children });
+  return <button type="button" {...triggerProps} ref={mergedRef}>{children}</button>;
+});
+
+function AlertDialogPortal({ children, container }: { children?: ReactNode; container?: Element | null }) {
+  const ctx = useAlertDialogContext('Portal');
+  return <JuicePortal open={ctx.open} container={container}>{children}</JuicePortal>;
+}
+
+function AlertDialogOverlay({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  const ctx = useAlertDialogContext('Overlay');
+  if (!ctx.open) return null;
+  // Intentionally does NOT close on click: AlertDialog requires an explicit Cancel or Action.
+  return <div aria-hidden="true" {...rest} className={clsx('j-overlay', className)} />;
+}
+
+const alertFocusableSelector =
+  'button:not(:disabled), a[href], input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex]';
+
+function makeCancelableEvent(type: string): Event {
+  if (typeof Event === 'function') return new Event(type, { cancelable: true });
+  let prevented = false;
+  return {
+    type,
+    cancelable: true,
+    get defaultPrevented() { return prevented; },
+    preventDefault() { prevented = true; },
+  } as unknown as Event;
+}
+
+const AlertDialogContent = forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement> & {
+    onEscapeKeyDown?: (event: globalThis.KeyboardEvent) => void;
+    onOpenAutoFocus?: (event: Event) => void;
+    onCloseAutoFocus?: (event: Event) => void;
+  }
+>(function AlertDialogContent({ className, onEscapeKeyDown, onOpenAutoFocus, onCloseAutoFocus, ...rest }, forwardedRef) {
+  const ctx = useAlertDialogContext('Content');
+  const latest = useRef({ ctx, onEscapeKeyDown, onOpenAutoFocus, onCloseAutoFocus });
+  useIsomorphicLayoutEffect(() => {
+    latest.current = { ctx, onEscapeKeyDown, onOpenAutoFocus, onCloseAutoFocus };
+  });
+  useBodyScrollLock(ctx.open, ctx.contentRef);
+
+  useIsomorphicLayoutEffect(() => {
+    const node = ctx.contentRef.current;
+    if (!ctx.open || !node) return;
+    const doc = node.ownerDocument;
+    const previousFocus =
+      ctx.triggerRef.current ??
+      (doc.activeElement instanceof HTMLElement && doc.activeElement !== doc.body && !node.contains(doc.activeElement)
+        ? doc.activeElement
+        : null);
+
+    const tabbables = () =>
+      Array.from(node.querySelectorAll<HTMLElement>(alertFocusableSelector)).filter(
+        (el) => el.tabIndex >= 0 && el.getClientRects().length && !el.closest('[inert],[hidden]'),
+      );
+
+    const openEv = makeCancelableEvent('openAutoFocus');
+    latest.current.onOpenAutoFocus?.(openEv);
+    if (!openEv.defaultPrevented) {
+      const target = ctx.cancelRef.current ?? tabbables()[0] ?? node;
+      target.focus({ preventScroll: true });
+    }
+
+    let escapedOnce = false;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape') {
+        latest.current.onEscapeKeyDown?.(event);
+        if (event.defaultPrevented) return;
+        event.preventDefault();
+        if (latest.current.ctx.dismissOnEscape && !escapedOnce) {
+          escapedOnce = true;
+          latest.current.ctx.setOpen(false);
+        }
+      } else if (event.key === 'Tab') {
+        const list = tabbables();
+        const first = list[0] ?? node;
+        const last = list.at(-1) ?? node;
+        if (event.shiftKey ? doc.activeElement === first || doc.activeElement === node : doc.activeElement === last) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+      }
+    };
+    const onFocusIn = (event: FocusEvent) => {
+      if (!event.composedPath().includes(node)) {
+        (ctx.cancelRef.current ?? tabbables()[0] ?? node).focus();
+      }
+    };
+    doc.addEventListener('keydown', onKeyDown);
+    doc.addEventListener('focusin', onFocusIn);
+    return () => {
+      doc.removeEventListener('keydown', onKeyDown);
+      doc.removeEventListener('focusin', onFocusIn);
+      const closeEv = makeCancelableEvent('closeAutoFocus');
+      latest.current.onCloseAutoFocus?.(closeEv);
+      if (!closeEv.defaultPrevented && previousFocus?.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    };
+  }, [ctx.open, ctx.contentRef, ctx.triggerRef, ctx.cancelRef]);
+
+  if (!ctx.open) return null;
   return (
-    <>
-      <button ref={triggerButton} type="button" className="j-btn" data-size="sm" data-variant="danger"
-        aria-haspopup="dialog" aria-controls={id} onClick={() => {
-          playSound('tap');
-          setExpanded(true);
-        }}>
-        {trigger}
-      </button>
-      <dialog ref={dialog} id={id} role="alertdialog" aria-modal="true" aria-labelledby={`${id}-title`}
-        aria-describedby={`${id}-description`} onKeyDown={(event) => {
-          if (event.key !== 'Tab') return;
-          const source = event.shiftKey ? cancel.current : confirm.current;
-          if (event.target !== source) return;
-          event.preventDefault();
-          (event.shiftKey ? confirm.current : cancel.current)?.focus();
-        }} onCancel={(event) => {
-          event.preventDefault();
-          if (dismissOnEscape) dismiss();
-        }} style={{
-          background: 'var(--fill-slab)', color: 'var(--fill-on)', border: 0, borderRadius: 20, padding: 16,
-          boxSizing: 'border-box', width: 'min(340px, calc(100vw - 24px))',
-          boxShadow: '0 0 0 1px var(--juice-edge), 0 20px 56px -12px rgba(0, 0, 0, 0.28)',
-        }}>
-        <h2 id={`${id}-title`} style={{ ...row, margin: 0, fontSize: 15 }}>{title}</h2>
-        <div id={`${id}-description`} style={{ ...muted, margin: '7px 0 14px', lineHeight: 1.45 }}>{description}</div>
-        <div style={{ ...row, justifyContent: 'flex-end' }}>
-          <button ref={cancel} type="button" className="j-btn" data-size="sm" data-variant="ghost" onClick={dismiss}>
-            {cancelLabel}
-          </button>
-          <button ref={confirm} type="button" className="j-btn" data-size="sm" data-variant="danger" onClick={() => {
-            playSound('paid');
-            action();
-            setExpanded(false);
-          }}>
-            {actionLabel}
-          </button>
-        </div>
-      </dialog>
-    </>
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      tabIndex={-1}
+      aria-labelledby={rest['aria-label'] ? undefined : ctx.titleId}
+      aria-describedby={ctx.descriptionId}
+      {...rest}
+      id={rest.id ?? ctx.id}
+      ref={composeRefs(ctx.contentRef, forwardedRef)}
+      className={clsx('j-slab', 'j-dialog-content', 'j-alert-dialog', className)}
+    />
+  );
+});
+
+function AlertDialogHeader({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div {...rest} className={clsx('j-dialog-header', className)} />;
+}
+
+function AlertDialogTitle({ id, className, ...rest }: HTMLAttributes<HTMLHeadingElement>) {
+  const ctx = useAlertDialogContext('Title');
+  const generated = useId();
+  const resolved = id ?? generated;
+  useIsomorphicLayoutEffect(() => {
+    ctx.setTitleId(resolved);
+    return () => ctx.setTitleId(undefined);
+  }, [ctx.setTitleId, resolved]);
+  return <h2 {...rest} id={resolved} className={clsx('j-dialog-title', className)} />;
+}
+
+function AlertDialogDescription({ id, className, ...rest }: HTMLAttributes<HTMLParagraphElement>) {
+  const ctx = useAlertDialogContext('Description');
+  const generated = useId();
+  const resolved = id ?? generated;
+  useIsomorphicLayoutEffect(() => {
+    ctx.setDescriptionId(resolved);
+    return () => ctx.setDescriptionId(undefined);
+  }, [ctx.setDescriptionId, resolved]);
+  return <p {...rest} id={resolved} className={clsx('j-dialog-description', className)} />;
+}
+
+function AlertDialogFooter({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div {...rest} className={clsx('j-dialog-footer', className)} />;
+}
+
+const AlertDialogCancel = forwardRef<HTMLButtonElement, AlertSlotButtonProps>(function AlertDialogCancel(
+  { asChild, render, className, onClick, children, ...rest },
+  forwardedRef,
+) {
+  const ctx = useAlertDialogContext('Cancel');
+  const mergedRef = composeRefs<HTMLButtonElement>((node) => { ctx.cancelRef.current = node; }, forwardedRef);
+  const cancelProps: ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown> = {
+    ...rest,
+    className: asChild || render ? className : clsx('j-btn', className),
+    'data-size': asChild || render ? undefined : 'sm',
+    'data-variant': asChild || render ? undefined : 'ghost',
+    onClick: chainEvent(onClick, () => ctx.setOpen(false)),
+  };
+  if (typeof render === 'function') return render({ type: 'button', ...cancelProps, children, ref: mergedRef });
+  const slotEl = asChild ? children : render;
+  if (slotEl !== undefined) return renderSlottedElement(slotEl as ReactElement, cancelProps, mergedRef, { asChild, children });
+  return <button type="button" {...cancelProps} ref={mergedRef}>{children}</button>;
+});
+
+const AlertDialogAction = forwardRef<HTMLButtonElement, AlertSlotButtonProps>(function AlertDialogAction(
+  { asChild, render, className, onClick, children, ...rest },
+  forwardedRef,
+) {
+  const ctx = useAlertDialogContext('Action');
+  const actionProps: ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown> = {
+    ...rest,
+    className: asChild || render ? className : clsx('j-btn', className),
+    'data-size': asChild || render ? undefined : 'sm',
+    'data-variant': asChild || render ? undefined : 'danger',
+    onClick: chainEvent(onClick, () => ctx.setOpen(false)),
+  };
+  if (typeof render === 'function') return render({ type: 'button', ...actionProps, children, ref: forwardedRef });
+  const slotEl = asChild ? children : render;
+  if (slotEl !== undefined) return renderSlottedElement(slotEl as ReactElement, actionProps, forwardedRef, { asChild, children });
+  return <button type="button" {...actionProps} ref={forwardedRef}>{children}</button>;
+});
+
+type LegacyAlertDialogProps = {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger: ReactNode;
+  title: ReactNode;
+  description: ReactNode;
+  action: () => void;
+  cancelLabel?: string;
+  actionLabel?: string;
+  dismissOnEscape?: boolean;
+};
+
+function LegacyAlertDialog({
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  trigger,
+  title,
+  description,
+  action,
+  cancelLabel = 'Cancel',
+  actionLabel = 'Confirm',
+  dismissOnEscape = true,
+}: LegacyAlertDialogProps) {
+  const { playSound } = useJuice();
+  return (
+    <AlertDialogRoot open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange} dismissOnEscape={dismissOnEscape}>
+      <AlertDialogTrigger asChild>
+        <button type="button" className="j-btn" data-size="sm" data-variant="danger" onClick={() => playSound('tap')}>
+          {trigger}
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogPortal>
+        <AlertDialogOverlay />
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="j-alert-dialog-title-row">{title}</AlertDialogTitle>
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => playSound('tap')}>{cancelLabel}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { playSound('tap'); action(); }}>{actionLabel}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialogPortal>
+    </AlertDialogRoot>
   );
 }
+
+function AlertDialogComponent(props: LegacyAlertDialogProps | AlertDialogRootProps) {
+  if ('trigger' in props && props.trigger !== undefined && 'title' in props) {
+    return <LegacyAlertDialog {...(props as LegacyAlertDialogProps)} />;
+  }
+  return <AlertDialogRoot {...(props as AlertDialogRootProps)} />;
+}
+
+export const AlertDialog = Object.assign(AlertDialogComponent, {
+  Root: AlertDialogRoot,
+  Trigger: AlertDialogTrigger,
+  Portal: AlertDialogPortal,
+  Overlay: AlertDialogOverlay,
+  Content: AlertDialogContent,
+  Header: AlertDialogHeader,
+  Title: AlertDialogTitle,
+  Description: AlertDialogDescription,
+  Footer: AlertDialogFooter,
+  Action: AlertDialogAction,
+  Cancel: AlertDialogCancel,
+});
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -740,7 +1513,7 @@ export function ScrollArea({ children, label, style, viewportRef, onScrollProgre
     progressListener.current?.(progress);
   }
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     measure();
     const observer = new ResizeObserver(measure);
     if (viewport.current) observer.observe(viewport.current);
@@ -1298,7 +2071,7 @@ export function AspectRatioKit({ id = 'aspect-ratio-kit' }: KitProps = {}) {
   const current = ratios.find((option) => option.value === ratio) ?? ratios[0];
   const setRatio = (next: Ratio) => { if (ratios.some((option) => option.value === next)) updateRatio(next); };
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const element = preview.current;
     if (!element) return;
     const measure = () => {

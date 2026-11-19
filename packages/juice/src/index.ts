@@ -1,3 +1,4 @@
+"use client";
 export * from './sound.ts';
 export * from './behaviors.tsx';
 export * from './components.tsx';
@@ -11,4 +12,4 @@ export * from './components-base-ui.tsx';
 export * from './components-portal-floating.tsx';
 export * from './components-media-workbench.tsx';
 export * from './components-composable.tsx';
-
+export * from './components-workbench.tsx';

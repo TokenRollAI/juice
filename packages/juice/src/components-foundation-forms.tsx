@@ -1,5 +1,9 @@
+"use client";
 import {
+  createContext,
   forwardRef,
+  useCallback,
+  useContext,
   useEffect,
   useId,
   useMemo,
@@ -7,116 +11,193 @@ import {
   useState,
   type ButtonHTMLAttributes,
   type ChangeEventHandler,
+  type CSSProperties,
+  type HTMLAttributes,
   type InputHTMLAttributes,
-  type TextareaHTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactElement,
   type ReactNode,
   type Ref,
+  type RefObject,
+  type TextareaHTMLAttributes,
 } from 'react';
-import { useReducedMotion } from 'motion/react';
 import { clsx } from 'clsx';
-import { Calendar, Check, ChevronDown, Loader2, Minus, Plus, Upload, X } from 'lucide-react';
-import { useControllableState, useJuice, useJuiceAgentNode, useRovingFocus, useScrubDrag } from './behaviors.tsx';
+import { Calendar, Check, ChevronDown, Loader2, Minus, Plus, Search, Upload, X } from 'lucide-react';
+import {
+  chainEvent,
+  composeRefs,
+  renderSlottedElement,
+  useControllableState,
+  useIsomorphicLayoutEffect,
+  useJuice,
+  useJuiceAgentNode,
+  usePrefersReducedMotion,
+  useRovingFocus,
+  useScrubDrag,
+  type SlottableProps,
+} from './behaviors.tsx';
 import { playJuiceSound, type JuiceSoundName } from './sound.ts';
 import { Badge, Checkbox, Kbd, RollingNumber, SegmentedControl, Switch } from './components.tsx';
+import { placeFloating, type FloatingPlacement } from './components-portal-floating.tsx';
+import { JuicePortal } from './components-composable.tsx';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger' | 'signal';
-type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger' | 'signal' | 'link';
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon' | 'icon-xs' | 'icon-sm' | 'icon-lg';
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  ref?: Ref<HTMLButtonElement>;
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  loading?: boolean;
-  pressed?: boolean;
-  sound?: boolean | JuiceSoundName;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
-};
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
+  SlottableProps<ButtonHTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> }> & {
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    loading?: boolean;
+    pressed?: boolean;
+    sound?: boolean | JuiceSoundName;
+    leftIcon?: ReactNode;
+    rightIcon?: ReactNode;
+  };
 
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  loading = false,
-  pressed,
-  sound = false,
-  leftIcon,
-  rightIcon,
-  children,
-  className,
-  disabled,
-  type = 'button',
-  onClick,
-  ...rest
-}: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = 'primary',
+    size = 'md',
+    loading = false,
+    pressed,
+    sound = false,
+    leftIcon,
+    rightIcon,
+    asChild,
+    render,
+    children,
+    className,
+    disabled,
+    type = 'button',
+    onClick,
+    ...rest
+  },
+  forwardedRef,
+) {
   const { animate } = useJuice();
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = usePrefersReducedMotion();
+  const isDisabled = Boolean(disabled || loading);
+
+  const buttonProps: ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown> = {
+    'data-pressed': pressed ?? rest['aria-pressed'],
+    ...rest,
+    type,
+    className: clsx('j-btn', className),
+    'data-variant': variant,
+    'data-size': size,
+    disabled: isDisabled,
+    'aria-busy': loading || rest['aria-busy'],
+    'aria-pressed': pressed ?? rest['aria-pressed'],
+    onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (sound && !disabled && !loading) {
+        playJuiceSound(sound === true ? 'tap' : sound);
+      }
+      onClick?.(e);
+    },
+  };
+
+  if (typeof render === 'function') {
+    return render({ ...buttonProps, children, ref: forwardedRef });
+  }
+
+  const slotEl = asChild ? children : render;
+  if (slotEl !== undefined) {
+    return renderSlottedElement(slotEl as ReactElement, buttonProps, forwardedRef, {
+      asChild,
+      children,
+      wrapChildren:
+        leftIcon || rightIcon
+          ? (inner) => (
+              <>
+                {leftIcon}
+                {inner}
+                {rightIcon}
+              </>
+            )
+          : undefined,
+    });
+  }
 
   return (
-    <button
-      data-pressed={pressed ?? rest['aria-pressed']}
-      {...rest}
-      type={type}
-      className={clsx('j-btn', className)}
-      data-variant={variant}
-      data-size={size}
-      disabled={disabled || loading}
-      aria-busy={loading || rest['aria-busy']}
-      aria-pressed={pressed ?? rest['aria-pressed']}
-      onClick={(e) => {
-        if (sound && !disabled && !loading) {
-          playJuiceSound(sound === true ? 'tap' : sound);
-        }
-        onClick?.(e);
-      }}
-    >
-      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 'inherit', opacity: loading ? 0 : undefined }}>
+    <button {...buttonProps} ref={forwardedRef}>
+      <span className="j-btn-content" data-loading={loading ? 'true' : undefined}>
         {leftIcon}
         {children}
         {rightIcon}
       </span>
       {loading && (
-        <>
-          <style href="juice-foundation-spin" precedence="default">
-            {'@keyframes juice-foundation-spin { to { transform: rotate(1turn); } }'}
-          </style>
-          <Loader2 size={14} aria-hidden="true" style={{ position: 'absolute', animation: animate && !reducedMotion ? 'juice-foundation-spin 0.85s linear infinite' : undefined }} />
-        </>
+        <Loader2
+          size={14}
+          aria-hidden="true"
+          className={clsx('j-btn-spinner', animate && !reducedMotion && 'j-btn-spinner-spin')}
+        />
       )}
     </button>
   );
-}
+});
 
-export function IconButton({
-  label,
-  variant = 'secondary',
-  size = 'sm',
-  children,
-  className,
-  style,
-  ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  label: string;
-  ref?: Ref<HTMLButtonElement>;
-  variant?: ButtonVariant;
-  size?: Exclude<ButtonSize, 'lg'>;
-}) {
-  const width = { xs: 24, sm: 30, md: 36 }[size];
+export type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
+  SlottableProps<ButtonHTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> }> & {
+    label: string;
+    variant?: ButtonVariant;
+    size?: 'xs' | 'sm' | 'md' | 'lg';
+    loading?: boolean;
+    pressed?: boolean;
+    sound?: boolean | JuiceSoundName;
+  };
 
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
+  {
+    label,
+    variant = 'secondary',
+    size = 'sm',
+    children,
+    className,
+    style,
+    ...rest
+  },
+  forwardedRef,
+) {
   return (
     <Button
       {...rest}
+      ref={forwardedRef}
       variant={variant}
       size={size}
       className={clsx('j-icon-btn', className)}
       aria-label={label}
-      style={{ width, height: width, flexShrink: 0, padding: 0, ...style }}
+      style={style}
     >
       {children}
     </Button>
   );
-}
+});
 
-type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'defaultValue' | 'onChange' | 'prefix'> & {
+// Bare Input primitive (Issue #21)
+export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & {
+  size?: 'sm' | 'md' | 'lg';
+  invalid?: boolean;
+};
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { size = 'md', invalid, className, ...rest },
+  forwardedRef,
+) {
+  const isInvalid = invalid || (rest['aria-invalid'] != null && rest['aria-invalid'] !== false && rest['aria-invalid'] !== 'false');
+  return (
+    <input
+      {...rest}
+      ref={forwardedRef}
+      data-size={size}
+      data-invalid={isInvalid ? 'true' : undefined}
+      aria-invalid={isInvalid || rest['aria-invalid']}
+      className={clsx('j-input', className)}
+    />
+  );
+});
+
+export type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'defaultValue' | 'onChange' | 'prefix'> & {
   label?: string;
   hint?: ReactNode;
   error?: string;
@@ -126,6 +207,8 @@ type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'def
   prefix?: ReactNode;
   suffix?: ReactNode;
   clearable?: boolean;
+  clearLabel?: string;
+  wrapperClassName?: string;
 };
 
 type FieldDescriptionProps = { id: string; hint?: ReactNode; error?: string };
@@ -155,22 +238,27 @@ function FieldSurfaceStyles() {
   );
 }
 
-export function TextField({
-  id,
-  label,
-  hint,
-  error,
-  value: controlledValue,
-  defaultValue = '',
-  onChange,
-  prefix,
-  suffix,
-  clearable = false,
-  className,
-  disabled,
-  readOnly,
-  ...rest
-}: TextFieldProps) {
+export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
+  {
+    id,
+    label,
+    hint,
+    error,
+    value: controlledValue,
+    defaultValue = '',
+    onChange,
+    prefix,
+    suffix,
+    clearable = false,
+    clearLabel,
+    wrapperClassName,
+    className,
+    disabled,
+    readOnly,
+    ...rest
+  },
+  forwardedRef,
+) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -178,7 +266,7 @@ export function TextField({
   const invalid = error ? true : rest['aria-invalid'];
 
   return (
-    <div className="j-field">
+    <div className={clsx('j-field', wrapperClassName)}>
       <FieldSurfaceStyles />
       {label && (
         <div className="j-field-label-row">
@@ -189,7 +277,7 @@ export function TextField({
         {prefix}
         <input
           {...rest}
-          ref={inputRef}
+          ref={composeRefs(inputRef, forwardedRef)}
           id={inputId}
           className={clsx('j-input-el', className)}
           disabled={disabled}
@@ -201,10 +289,15 @@ export function TextField({
         />
         {suffix}
         {clearable && value && !disabled && !readOnly && (
-          <IconButton label={`Clear ${label ?? rest['aria-label'] ?? 'input'}`} variant="ghost" size="xs" onClick={() => {
-            setValue('');
-            inputRef.current?.focus();
-          }}>
+          <IconButton
+            label={clearLabel ?? `Clear ${label ?? rest['aria-label'] ?? 'input'}`}
+            variant="ghost"
+            size="xs"
+            onClick={() => {
+              setValue('');
+              inputRef.current?.focus();
+            }}
+          >
             <X size={13} aria-hidden="true" />
           </IconButton>
         )}
@@ -212,7 +305,7 @@ export function TextField({
       <FieldDescription id={inputId} hint={hint} error={error} />
     </div>
   );
-}
+});
 
 type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'defaultValue' | 'onChange'> & {
   label?: string;
@@ -255,12 +348,599 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
   );
 });
 
-export type SelectOption<T extends string = string> = { value: T; label: string };
+// ---------------------------------------------------------------------------
+// Portalled Composable Select + Legacy Combobox Select + SimpleSelect (Issue #20)
+// ---------------------------------------------------------------------------
 
-type SelectProps<T extends string> = {
+export type SelectOption<T extends string = string> = {
+  value: T;
+  label: string;
+  hint?: ReactNode;
+  disabled?: boolean;
+};
+
+export type SimpleSelectOption<T extends string = string> = {
+  value: T;
+  label: ReactNode;
+  textValue?: string;
+  hint?: ReactNode;
+  disabled?: boolean;
+};
+
+export type SimpleSelectGroup<T extends string = string> = {
+  label: ReactNode;
+  options: readonly SimpleSelectOption<T>[];
+};
+
+type SelectContextValue = {
+  id: string;
+  value: string | undefined;
+  select: (next: string) => void;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  disabled: boolean;
+  name?: string;
+  size: 'default' | 'sm';
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  contentRef: RefObject<HTMLDivElement | null>;
+  labels: Map<string, ReactNode>;
+  registerLabel: (val: string, label: ReactNode) => () => void;
+  labelVersion: number;
+};
+
+const SelectContext = createContext<SelectContextValue | null>(null);
+
+function useSelectContext(slot: string): SelectContextValue {
+  const ctx = useContext(SelectContext);
+  if (!ctx) throw new Error(`Select.${slot} requires Select.Root`);
+  return ctx;
+}
+
+export type SelectRootProps = {
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  disabled?: boolean;
+  name?: string;
+  size?: 'default' | 'sm';
+  children?: ReactNode;
+};
+
+function SelectRoot({
+  value: controlledValue,
+  defaultValue,
+  onValueChange,
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  disabled = false,
+  name,
+  size = 'default',
+  children,
+}: SelectRootProps) {
+  const id = useId();
+  const { playSound } = useJuice();
+  const [value, setValue] = useControllableState<string | undefined>({
+    value: controlledValue,
+    defaultValue,
+    onChange: (next) => {
+      if (next !== undefined) onValueChange?.(next);
+    },
+  });
+  const [open, setOpenState] = useControllableState({
+    value: controlledOpen,
+    defaultValue: defaultOpen,
+    onChange: onOpenChange,
+  });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const labelsRef = useRef<Map<string, ReactNode>>(new Map());
+  const [labelVersion, setLabelVersion] = useState(0);
+
+  const registerLabel = useCallback((val: string, label: ReactNode) => {
+    const prev = labelsRef.current.get(val);
+    if (prev !== label) {
+      labelsRef.current.set(val, label);
+      setLabelVersion((v) => v + 1);
+    }
+    return () => {
+      if (labelsRef.current.get(val) === label) {
+        labelsRef.current.delete(val);
+      }
+    };
+  }, []);
+
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (disabled && next) return;
+      setOpenState(next);
+    },
+    [disabled, setOpenState],
+  );
+
+  const select = useCallback(
+    (next: string) => {
+      if (disabled) return;
+      if (next !== value) {
+        playSound('tap');
+        setValue(next);
+      }
+      setOpen(false);
+      triggerRef.current?.focus({ preventScroll: true });
+    },
+    [disabled, playSound, setOpen, setValue, value],
+  );
+
+  const ctx = useMemo<SelectContextValue>(
+    () => ({
+      id,
+      value,
+      select,
+      open: open && !disabled,
+      setOpen,
+      disabled,
+      name,
+      size,
+      triggerRef,
+      contentRef,
+      labels: labelsRef.current,
+      registerLabel,
+      labelVersion,
+    }),
+    [disabled, id, labelVersion, name, open, registerLabel, select, setOpen, size, value],
+  );
+
+  return (
+    <SelectContext.Provider value={ctx}>
+      {children}
+      {name && value !== undefined && <input type="hidden" name={name} value={value} disabled={disabled} />}
+    </SelectContext.Provider>
+  );
+}
+
+type SelectTriggerProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  size?: 'default' | 'sm';
+};
+
+const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(function SelectTrigger(
+  { className, size, disabled, children, onClick, onKeyDown, ...rest },
+  forwardedRef,
+) {
+  const ctx = useSelectContext('Trigger');
+  const isDisabled = Boolean(ctx.disabled || disabled);
+  const resolvedSize = size ?? ctx.size;
+
+  return (
+    <button
+      type="button"
+      role="combobox"
+      aria-haspopup="listbox"
+      aria-expanded={ctx.open}
+      aria-controls={ctx.open ? `${ctx.id}-content` : undefined}
+      disabled={isDisabled}
+      data-size={resolvedSize}
+      data-state={ctx.open ? 'open' : 'closed'}
+      {...rest}
+      id={rest.id ?? `${ctx.id}-trigger`}
+      ref={composeRefs(ctx.triggerRef, forwardedRef)}
+      className={clsx('j-select-trigger', className)}
+      onClick={chainEvent(onClick, () => {
+        if (!isDisabled) ctx.setOpen(!ctx.open);
+      })}
+      onKeyDown={chainEvent(onKeyDown, (event) => {
+        if (isDisabled) return;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === ' ' || event.key === 'Enter') {
+          if (!ctx.open) {
+            event.preventDefault();
+            ctx.setOpen(true);
+          }
+        }
+      })}
+    >
+      <span className="j-select-trigger-value">{children}</span>
+      <ChevronDown size={14} aria-hidden="true" className="j-select-chevron" data-open={ctx.open ? 'true' : undefined} />
+    </button>
+  );
+});
+
+function SelectValue({
+  placeholder,
+  children,
+  className,
+}: {
+  placeholder?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}) {
+  const ctx = useSelectContext('Value');
+  const hasSelection = ctx.value !== undefined && ctx.labels.has(ctx.value);
+  const resolved = children ?? (hasSelection ? ctx.labels.get(ctx.value!) : undefined);
+  const isPlaceholder = resolved === undefined;
+  return (
+    <span className={clsx('j-select-value', className)} data-placeholder={isPlaceholder ? 'true' : undefined}>
+      {isPlaceholder ? placeholder : resolved}
+    </span>
+  );
+}
+
+function SelectPortal({ children, container }: { children?: ReactNode; container?: Element | null }) {
+  const ctx = useSelectContext('Portal');
+  return <JuicePortal open={ctx.open} container={container}>{children}</JuicePortal>;
+}
+
+type SelectContentProps = HTMLAttributes<HTMLDivElement> & {
+  side?: 'top' | 'bottom';
+  align?: 'start' | 'center' | 'end';
+  sideOffset?: number;
+  placement?: FloatingPlacement;
+};
+
+const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(function SelectContent(
+  { side = 'bottom', align = 'start', sideOffset = 6, placement, className, style, onKeyDown, children, ...rest },
+  forwardedRef,
+) {
+  const ctx = useSelectContext('Content');
+  const preferred = placement ?? ((align === 'center' ? side : `${side}-${align}`) as FloatingPlacement);
+
+  useIsomorphicLayoutEffect(() => {
+    const anchor = ctx.triggerRef.current;
+    const node = ctx.contentRef.current;
+    if (!ctx.open || !anchor || !node) return;
+    const doc = node.ownerDocument;
+    const win = doc.defaultView;
+    if (!win) return;
+
+    const position = () => {
+      const rect = anchor.getBoundingClientRect();
+      node.style.minWidth = `${Math.max(rect.width, 140)}px`;
+      const { x, y, side: resolvedSide } = placeFloating(
+        rect,
+        { width: node.offsetWidth, height: node.offsetHeight },
+        { width: doc.documentElement.clientWidth, height: doc.documentElement.clientHeight },
+        preferred,
+        sideOffset,
+      );
+      node.style.top = `${y}px`;
+      node.style.left = `${x}px`;
+      node.dataset.side = resolvedSide;
+    };
+    position();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(position) : undefined;
+    observer?.observe(anchor);
+    observer?.observe(node);
+    win.addEventListener('resize', position);
+    win.addEventListener('scroll', position, true);
+    return () => {
+      observer?.disconnect();
+      win.removeEventListener('resize', position);
+      win.removeEventListener('scroll', position, true);
+    };
+  }, [ctx.open, ctx.triggerRef, ctx.contentRef, preferred, sideOffset]);
+
+  useIsomorphicLayoutEffect(() => {
+    const node = ctx.contentRef.current;
+    if (!ctx.open || !node) return;
+    const doc = node.ownerDocument;
+    const options = Array.from(node.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"]):not(:disabled)'));
+    const selectedEl = options.find((el) => el.getAttribute('aria-selected') === 'true');
+    const searchInput = node.querySelector<HTMLInputElement>('input[data-select-search]');
+    (searchInput ?? selectedEl ?? options[0] ?? node).focus({ preventScroll: true });
+
+    const onOutside = (event: MouseEvent) => {
+      const path = event.composedPath();
+      if (path.includes(node) || (ctx.triggerRef.current && path.includes(ctx.triggerRef.current))) return;
+      ctx.setOpen(false);
+    };
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      ctx.setOpen(false);
+      ctx.triggerRef.current?.focus({ preventScroll: true });
+    };
+    doc.addEventListener('pointerdown', onOutside, true);
+    doc.addEventListener('keydown', onEscape);
+    return () => {
+      doc.removeEventListener('pointerdown', onOutside, true);
+      doc.removeEventListener('keydown', onEscape);
+    };
+  }, [ctx.open, ctx.contentRef, ctx.triggerRef, ctx.setOpen]);
+
+  if (!ctx.open) return null;
+
+  return (
+    <div
+      role="listbox"
+      tabIndex={-1}
+      {...rest}
+      id={rest.id ?? `${ctx.id}-content`}
+      ref={composeRefs(ctx.contentRef, forwardedRef)}
+      className={clsx('j-floating-pop', 'j-menu-list', 'j-select-content', className)}
+      style={style}
+      onKeyDown={chainEvent(onKeyDown, (event: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Tab') {
+          ctx.setOpen(false);
+          return;
+        }
+        const options = Array.from(
+          event.currentTarget.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"]):not(:disabled)'),
+        );
+        if (options.length === 0) return;
+        const idx = options.indexOf(event.target as HTMLElement);
+        let next: HTMLElement | undefined;
+        if (event.key === 'ArrowDown') {
+          next = options[(idx + 1) % options.length];
+        } else if (event.key === 'ArrowUp') {
+          next = options[(idx - 1 + options.length) % options.length];
+        } else if (event.key === 'Home') {
+          next = options[0];
+        } else if (event.key === 'End') {
+          next = options.at(-1);
+        } else {
+          return;
+        }
+        event.preventDefault();
+        next?.focus();
+      })}
+    >
+      {children}
+    </div>
+  );
+});
+
+function SelectGroup({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div role="group" {...props} className={clsx('j-menu-group', className)} />;
+}
+
+function SelectLabel({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div {...props} className={clsx('j-menu-label', className)} />;
+}
+
+type SelectItemProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'value'> & {
+  value: string;
+  hint?: ReactNode;
+  textValue?: string;
+};
+
+const SelectItem = forwardRef<HTMLButtonElement, SelectItemProps>(function SelectItem(
+  { value, hint, textValue, disabled = false, className, children, onClick, ...rest },
+  forwardedRef,
+) {
+  const ctx = useSelectContext('Item');
+  const selected = ctx.value === value;
+  const displayLabel = textValue ?? children;
+
+  useIsomorphicLayoutEffect(() => {
+    return ctx.registerLabel(value, displayLabel);
+  }, [ctx.registerLabel, value, displayLabel]);
+
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      aria-disabled={disabled || undefined}
+      disabled={disabled}
+      tabIndex={-1}
+      data-selected={selected ? 'true' : undefined}
+      data-value={value}
+      {...rest}
+      ref={forwardedRef}
+      className={clsx('j-menu-item', 'j-select-item', className)}
+      onClick={chainEvent(onClick, () => {
+        if (!disabled) ctx.select(value);
+      })}
+    >
+      <span className="j-select-item-body">
+        <span className="j-select-item-label">{children}</span>
+        {hint != null && <span className="j-select-item-hint">{hint}</span>}
+      </span>
+      {selected && <Check size={14} aria-hidden="true" className="j-select-check" />}
+    </button>
+  );
+});
+
+function SelectSeparator({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div role="separator" {...props} className={clsx('j-menu-separator', className)} />;
+}
+
+export const SelectMenu = {
+  Root: SelectRoot,
+  Trigger: SelectTrigger,
+  Value: SelectValue,
+  Portal: SelectPortal,
+  Content: SelectContent,
+  Group: SelectGroup,
+  Label: SelectLabel,
+  Item: SelectItem,
+  Separator: SelectSeparator,
+};
+
+export type SimpleSelectProps<T extends string = string> = {
   id?: string;
   name?: string;
-  label: string;
+  options?: readonly SimpleSelectOption<T>[];
+  groups?: readonly SimpleSelectGroup<T>[];
+  value?: T;
+  defaultValue?: T;
+  onValueChange?: (value: T) => void;
+  onChange?: (value: T) => void;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  placeholder?: ReactNode;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  emptyLabel?: ReactNode;
+  size?: 'default' | 'sm';
+  disabled?: boolean;
+  className?: string;
+  contentClassName?: string;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
+  labels?: {
+    searchPlaceholder?: string;
+    empty?: ReactNode;
+    listbox?: string;
+  };
+};
+
+export function SimpleSelect<T extends string = string>({
+  id,
+  name,
+  options = [],
+  groups = [],
+  value,
+  defaultValue,
+  onValueChange,
+  onChange,
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  placeholder = 'Select…',
+  searchable = false,
+  searchPlaceholder,
+  emptyLabel,
+  size = 'default',
+  disabled = false,
+  className,
+  contentClassName,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
+  labels,
+}: SimpleSelectProps<T>) {
+  const [open, setOpen] = useControllableState({
+    value: controlledOpen,
+    defaultValue: defaultOpen,
+    onChange: onOpenChange,
+  });
+  const [query, setQuery] = useState('');
+
+  const handleSelect = (next: string) => {
+    setQuery('');
+    onValueChange?.(next as T);
+    onChange?.(next as T);
+  };
+
+  const allOptions = useMemo(() => {
+    const list: SimpleSelectOption<T>[] = [...options];
+    for (const group of groups) {
+      list.push(...group.options);
+    }
+    return list;
+  }, [groups, options]);
+
+  const selectedOption = value !== undefined
+    ? allOptions.find((opt) => opt.value === value)
+    : undefined;
+
+  const matches = useCallback(
+    (opt: SimpleSelectOption<T>) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      const text = opt.textValue ?? (typeof opt.label === 'string' ? opt.label : opt.value);
+      const hintText = typeof opt.hint === 'string' ? opt.hint : '';
+      return text.toLowerCase().includes(q) || opt.value.toLowerCase().includes(q) || hintText.toLowerCase().includes(q);
+    },
+    [query],
+  );
+
+  const filteredOptions = useMemo(() => options.filter(matches), [matches, options]);
+  const filteredGroups = useMemo(
+    () => groups.map((g) => ({ ...g, options: g.options.filter(matches) })).filter((g) => g.options.length > 0),
+    [groups, matches],
+  );
+  const totalVisible = filteredOptions.length + filteredGroups.reduce((acc, g) => acc + g.options.length, 0);
+
+  const resolvedSearchPlaceholder = labels?.searchPlaceholder ?? searchPlaceholder ?? 'Search…';
+  const resolvedEmpty = labels?.empty ?? emptyLabel ?? 'No options';
+
+  return (
+    <SelectRoot
+      value={value}
+      defaultValue={defaultValue}
+      onValueChange={handleSelect}
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setQuery('');
+      }}
+      disabled={disabled}
+      name={name}
+      size={size}
+    >
+      <SelectTrigger
+        id={id}
+        size={size}
+        className={className}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+      >
+        <SelectValue placeholder={placeholder}>
+          {selectedOption ? selectedOption.label : undefined}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectPortal>
+        <SelectContent className={contentClassName} aria-label={labels?.listbox ?? ariaLabel}>
+          {searchable && (
+            <div className="j-select-search-wrap">
+              <Search size={13} aria-hidden="true" className="j-select-search-icon" />
+              <input
+                type="text"
+                data-select-search=""
+                className="j-select-search-input"
+                value={query}
+                placeholder={resolvedSearchPlaceholder}
+                aria-label={resolvedSearchPlaceholder}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+              />
+            </div>
+          )}
+          {filteredOptions.map((opt) => (
+            <SelectItem
+              key={`opt-${opt.value}`}
+              value={opt.value}
+              disabled={opt.disabled}
+              hint={opt.hint}
+              textValue={opt.textValue}
+            >
+              {opt.label}
+            </SelectItem>
+          ))}
+          {filteredGroups.map((group, groupIndex) => (
+            <SelectGroup key={`grp-${groupIndex}`}>
+              {(groupIndex > 0 || filteredOptions.length > 0) && <SelectSeparator />}
+              <SelectLabel>{group.label}</SelectLabel>
+              {group.options.map((opt) => (
+                <SelectItem
+                  key={`gopt-${groupIndex}-${opt.value}`}
+                  value={opt.value}
+                  disabled={opt.disabled}
+                  hint={opt.hint}
+                  textValue={opt.textValue}
+                >
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+          {totalVisible === 0 && (
+            <div role="status" className="j-select-empty">
+              {resolvedEmpty}
+            </div>
+          )}
+        </SelectContent>
+      </SelectPortal>
+    </SelectRoot>
+  );
+}
+
+type LegacySelectProps<T extends string> = {
+  id?: string;
+  name?: string;
+  label?: string;
   options: readonly SelectOption<T>[];
   value?: T;
   defaultValue?: T;
@@ -268,6 +948,7 @@ type SelectProps<T extends string> = {
   placeholder?: string;
   searchPlaceholder?: string;
   emptyLabel?: string;
+  toggleLabel?: string;
   hint?: ReactNode;
   error?: string;
   disabled?: boolean;
@@ -275,9 +956,11 @@ type SelectProps<T extends string> = {
   onQueryChange?: (query: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  className?: string;
+  style?: CSSProperties;
 };
 
-export function Select<T extends string>({
+function LegacySelect<T extends string>({
   id,
   name,
   label,
@@ -288,6 +971,7 @@ export function Select<T extends string>({
   placeholder = 'Select an option',
   searchPlaceholder = 'Search options',
   emptyLabel = 'No matching options',
+  toggleLabel,
   hint,
   error,
   disabled = false,
@@ -295,9 +979,14 @@ export function Select<T extends string>({
   onQueryChange,
   open: controlledOpen,
   onOpenChange,
-}: SelectProps<T>) {
+  className,
+  style,
+}: LegacySelectProps<T>) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const listId = `${inputId}-options`;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -315,28 +1004,78 @@ export function Select<T extends string>({
     const search = query.trim().toLowerCase();
     return options.filter((option) => option.label.toLowerCase().includes(search) || option.value.toLowerCase().includes(search));
   }, [options, query]);
-  const items = useMemo(() => filtered.map((option) => option.value), [filtered]);
+  const items = useMemo(() => filtered.filter((opt) => !opt.disabled).map((option) => option.value), [filtered]);
   const active = items.find((item) => item === highlighted)
     ?? items.find((item) => item === value) ?? items[0];
   const { onKeyDown } = useRovingFocus({ items, active: active ?? ('' as T), onSelect: setHighlighted });
   const { playSound } = useJuice();
 
+  const close = useCallback(() => {
+    setOpen(false);
+    setQuery('');
+    setHighlighted(undefined);
+  }, [setOpen, setQuery]);
+
+  useIsomorphicLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    const pop = popoverRef.current;
+    if (!expanded || !anchor || !pop) return;
+    const doc = pop.ownerDocument;
+    const win = doc.defaultView;
+    if (!win) return;
+    const position = () => {
+      const rect = anchor.getBoundingClientRect();
+      pop.style.width = `${rect.width}px`;
+      const { x, y, side } = placeFloating(
+        rect,
+        { width: pop.offsetWidth, height: pop.offsetHeight },
+        { width: doc.documentElement.clientWidth, height: doc.documentElement.clientHeight },
+        'bottom-start',
+        6,
+      );
+      pop.style.top = `${y}px`;
+      pop.style.left = `${x}px`;
+      pop.dataset.side = side;
+    };
+    position();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(position) : undefined;
+    observer?.observe(anchor);
+    observer?.observe(pop);
+    win.addEventListener('resize', position);
+    win.addEventListener('scroll', position, true);
+    return () => {
+      observer?.disconnect();
+      win.removeEventListener('resize', position);
+      win.removeEventListener('scroll', position, true);
+    };
+  }, [expanded]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const doc = fieldRef.current?.ownerDocument;
+    if (!doc) return;
+    const onPointerDown = (event: globalThis.PointerEvent) => {
+      const path = event.composedPath();
+      if (
+        (fieldRef.current && path.includes(fieldRef.current)) ||
+        (popoverRef.current && path.includes(popoverRef.current))
+      ) return;
+      close();
+    };
+    doc.addEventListener('pointerdown', onPointerDown, true);
+    return () => doc.removeEventListener('pointerdown', onPointerDown, true);
+  }, [expanded, close]);
+
   useEffect(() => {
     if (!expanded || active === undefined) return;
     const list = listRef.current;
-    const option = list?.children[items.indexOf(active)];
+    const option = list?.querySelector<HTMLElement>(`[data-option-value="${CSS.escape ? CSS.escape(active) : active}"]`);
     if (!list || !option || list.scrollHeight <= list.clientHeight) return;
     const bounds = list.getBoundingClientRect();
     const item = option.getBoundingClientRect();
     if (item.top < bounds.top) list.scrollTop += item.top - bounds.top;
     if (item.bottom > bounds.bottom) list.scrollTop += item.bottom - bounds.bottom;
   }, [active, items, expanded]);
-
-  function close() {
-    setOpen(false);
-    setQuery('');
-    setHighlighted(undefined);
-  }
 
   function choose(next: T) {
     if (next !== value) {
@@ -348,13 +1087,26 @@ export function Select<T extends string>({
   }
 
   return (
-    <div className="j-field" onBlur={(event) => {
-      if (expanded && !event.currentTarget.contains(event.relatedTarget)) close();
-    }}>
+    <div
+      ref={fieldRef}
+      className={clsx('j-field', className)}
+      style={style}
+      onBlur={(event) => {
+        const nextFocus = event.relatedTarget as Node | null;
+        if (
+          expanded &&
+          nextFocus &&
+          !event.currentTarget.contains(nextFocus) &&
+          !popoverRef.current?.contains(nextFocus)
+        ) {
+          close();
+        }
+      }}
+    >
       <FieldSurfaceStyles />
-      <div className="j-field-label-row"><label htmlFor={inputId}>{label}</label></div>
+      {label && <div className="j-field-label-row"><label htmlFor={inputId}>{label}</label></div>}
       {name && <input type="hidden" name={name} value={value ?? ''} disabled={disabled} />}
-      <div className="j-input-box" data-invalid={error ? true : undefined} style={{ opacity: disabled ? 0.55 : undefined }}>
+      <div ref={anchorRef} className="j-input-box" data-invalid={error ? true : undefined} style={{ opacity: disabled ? 0.55 : undefined }}>
         <input
           ref={inputRef}
           id={inputId}
@@ -369,7 +1121,7 @@ export function Select<T extends string>({
           aria-autocomplete="list"
           aria-expanded={expanded}
           aria-controls={expanded ? listId : undefined}
-          aria-activedescendant={expanded && active !== undefined ? `${listId}-${items.indexOf(active)}` : undefined}
+          aria-activedescendant={expanded && active !== undefined ? `${listId}-${filtered.findIndex((o) => o.value === active)}` : undefined}
           onFocus={(event) => { if (!expanded) event.currentTarget.select(); }}
           onClick={() => { if (!expanded) setOpen(true); }}
           onChange={(event) => {
@@ -400,7 +1152,7 @@ export function Select<T extends string>({
           }}
         />
         <IconButton
-          label={`${expanded ? 'Close' : 'Open'} ${label} options`}
+          label={toggleLabel ?? `${expanded ? 'Close' : 'Open'} ${label ?? 'options'}`}
           size="xs"
           variant="ghost"
           disabled={disabled}
@@ -414,34 +1166,47 @@ export function Select<T extends string>({
           <ChevronDown size={14} aria-hidden="true" style={{ transform: expanded ? 'rotate(180deg)' : undefined }} />
         </IconButton>
       </div>
-      {expanded && (
-        <div className="j-menu-list" style={{ background: 'var(--fill-slab)' }}>
-          <div ref={listRef} id={listId} role="listbox" aria-label={label} style={{ maxHeight: 184, overflowY: 'auto' }}>
+      <JuicePortal open={expanded}>
+        <div ref={popoverRef} className="j-floating-pop j-menu-list j-select-content">
+          <div ref={listRef} id={listId} role="listbox" aria-label={label ?? placeholder} style={{ maxHeight: 184, overflowY: 'auto' }}>
             {filtered.map((option, index) => (
               <div
                 key={option.value}
                 id={`${listId}-${index}`}
                 role="option"
+                data-option-value={option.value}
                 aria-selected={option.value === value}
-                className="j-menu-item"
+                aria-disabled={option.disabled || undefined}
+                className="j-menu-item j-select-item"
                 data-highlighted={option.value === active || undefined}
-                style={{ flexShrink: 0, minHeight: 32, height: 'auto', overflowWrap: 'anywhere' }}
-                onMouseMove={() => setHighlighted(option.value)}
+                onMouseMove={() => { if (!option.disabled) setHighlighted(option.value); }}
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => choose(option.value)}
+                onClick={() => { if (!option.disabled) choose(option.value); }}
               >
-                {option.label}
+                <span className="j-select-item-body">
+                  <span className="j-select-item-label">{option.label}</span>
+                  {option.hint != null && <span className="j-select-item-hint">{option.hint}</span>}
+                </span>
                 {option.value === value && <Check size={14} aria-hidden="true" />}
               </div>
             ))}
           </div>
-          {filtered.length === 0 && <div role="status" style={{ padding: 8, fontSize: 12, color: 'var(--juice-soft)' }}>{emptyLabel}</div>}
+          {filtered.length === 0 && <div role="status" className="j-select-empty">{emptyLabel}</div>}
         </div>
-      )}
+      </JuicePortal>
       <FieldDescription id={inputId} hint={hint} error={error} />
     </div>
   );
 }
+
+function SelectComponent<T extends string = string>(props: LegacySelectProps<T> | SelectRootProps) {
+  if ('options' in props && Array.isArray(props.options)) {
+    return <LegacySelect {...(props as LegacySelectProps<T>)} />;
+  }
+  return <SelectRoot {...(props as SelectRootProps)} />;
+}
+
+export const Select = Object.assign(SelectComponent, SelectMenu);
 
 const radioCardStyles = `
   .j-radio-card:has(> input:checked) {

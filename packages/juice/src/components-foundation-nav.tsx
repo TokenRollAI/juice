@@ -1,7 +1,9 @@
+"use client";
 import { useEffect, useId, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
 import {
   AlertCircle,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -14,8 +16,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useReducedMotion } from 'motion/react';
-import { useControllableState, useJuice, useJuiceAgentNode, useRovingFocus } from './behaviors.tsx';
+import { useControllableState, useJuice, useJuiceAgentNode, usePrefersReducedMotion, useRovingFocus } from './behaviors.tsx';
 import { Badge, Kbd, RollingNumber, SegmentedControl, Switch } from './components.tsx';
 import { Button, IconButton } from './components-foundation-forms.tsx';
 
@@ -492,7 +493,7 @@ type AccordionItem = (typeof ACCORDION_ITEMS)[number]['id'];
 
 export function AccordionKit({ id = 'accordion-kit' }: { id?: string } = {}) {
   const { playSound, animate } = useJuice();
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = usePrefersReducedMotion();
   const headingId = useId();
   const [openItems, setOpenItems] = useState<AccordionItem[]>(['tokens']);
   const openItem = (item: string) => {
@@ -575,78 +576,201 @@ export function AccordionKit({ id = 'accordion-kit' }: { id?: string } = {}) {
   );
 }
 
-export function Breadcrumbs({ segments, current, onNavigate }: {
-  segments: readonly string[];
-  current: number;
-  onNavigate: (index: number) => void;
-}) {
+export type BreadcrumbItem = {
+  label: ReactNode;
+  href?: string;
+  onClick?: () => void;
+  current?: boolean;
+  title?: string;
+};
+
+export type BreadcrumbsProps = {
+  items?: readonly BreadcrumbItem[];
+  segments?: readonly string[];
+  current?: number;
+  onNavigate?: (index: number) => void;
+  ariaLabel?: string;
+  className?: string;
+  style?: CSSProperties;
+};
+
+export function Breadcrumbs({
+  items,
+  segments,
+  current,
+  onNavigate,
+  ariaLabel = 'Breadcrumbs',
+  className,
+  style,
+}: BreadcrumbsProps) {
+  const resolvedItems: readonly BreadcrumbItem[] = items ?? (segments ?? []).map((segment, index) => ({
+    label: segment,
+    title: segment,
+    current: index === current,
+    onClick: onNavigate ? () => onNavigate(index) : undefined,
+  }));
+
   return (
-    <nav aria-label="Breadcrumbs">
-      <ol style={{ ...row, gap: 0, flexWrap: 'wrap', listStyle: 'none', padding: 0, margin: 0 }}>
-        {segments.map((segment, index) => (
-          <li key={index} style={{ ...row, gap: 0, maxWidth: '100%' }}>
-            {index > 0 && <ChevronRight size={11} color="var(--juice-mute)" aria-hidden="true" />}
-            <button
-              type="button"
-              className="j-btn"
-              data-size="xs"
-              data-variant={index === current ? 'secondary' : 'ghost'}
-              title={segment}
-              style={{ minWidth: 0, fontWeight: index === current ? 600 : undefined }}
-              aria-current={index === current ? 'page' : undefined}
-              onClick={() => onNavigate(index)}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{segment}</span>
-            </button>
-          </li>
-        ))}
+    <nav aria-label={ariaLabel} className={clsx('j-breadcrumbs', className)} style={style}>
+      <ol className="j-breadcrumbs-list">
+        {resolvedItems.map((item, index) => {
+          const isCurrent = item.current ?? (current !== undefined ? index === current : index === resolvedItems.length - 1);
+          const itemTitle = item.title ?? (typeof item.label === 'string' ? item.label : undefined);
+          return (
+            <li key={index} className="j-breadcrumbs-item">
+              {index > 0 && <ChevronRight size={11} className="j-breadcrumbs-sep" aria-hidden="true" />}
+              {item.href ? (
+                <a
+                  href={item.href}
+                  className="j-btn j-breadcrumbs-link"
+                  data-size="xs"
+                  data-variant={isCurrent ? 'secondary' : 'ghost'}
+                  data-current={isCurrent ? 'true' : undefined}
+                  title={itemTitle}
+                  aria-current={isCurrent ? 'page' : undefined}
+                  onClick={item.onClick}
+                >
+                  <span className="j-breadcrumbs-label">{item.label}</span>
+                </a>
+              ) : item.onClick ? (
+                <button
+                  type="button"
+                  className="j-btn j-breadcrumbs-link"
+                  data-size="xs"
+                  data-variant={isCurrent ? 'secondary' : 'ghost'}
+                  data-current={isCurrent ? 'true' : undefined}
+                  title={itemTitle}
+                  aria-current={isCurrent ? 'page' : undefined}
+                  onClick={item.onClick}
+                >
+                  <span className="j-breadcrumbs-label">{item.label}</span>
+                </button>
+              ) : (
+                <span
+                  className="j-breadcrumbs-text"
+                  data-current={isCurrent ? 'true' : undefined}
+                  title={itemTitle}
+                  aria-current={isCurrent ? 'page' : undefined}
+                >
+                  {item.label}
+                </span>
+              )}
+            </li>
+          );
+        })}
       </ol>
     </nav>
   );
 }
 
-export function Pagination({ page, pageCount, onChange }: {
+export type PaginationLabels = {
+  nav?: string;
+  previous?: string;
+  next?: string;
+  page?: (n: number) => string;
+  ellipsis?: string;
+};
+
+function buildPaginationRange(page: number, pageCount: number, siblingCount = 1): Array<number | 'ellipsis'> {
+  if (pageCount <= 0) return [];
+  const totalSlots = siblingCount * 2 + 5;
+  if (pageCount <= totalSlots) {
+    return Array.from({ length: pageCount }, (_, i) => i + 1);
+  }
+  const leftSibling = Math.max(page - siblingCount, 1);
+  const rightSibling = Math.min(page + siblingCount, pageCount);
+  const showLeftEllipsis = leftSibling > 2;
+  const showRightEllipsis = rightSibling < pageCount - 1;
+
+  if (!showLeftEllipsis && showRightEllipsis) {
+    const leftCount = 3 + siblingCount * 2;
+    const leftRange = Array.from({ length: leftCount }, (_, i) => i + 1);
+    return [...leftRange, 'ellipsis', pageCount];
+  }
+  if (showLeftEllipsis && !showRightEllipsis) {
+    const rightCount = 3 + siblingCount * 2;
+    const start = pageCount - rightCount + 1;
+    const rightRange = Array.from({ length: rightCount }, (_, i) => start + i);
+    return [1, 'ellipsis', ...rightRange];
+  }
+  const middleRange = Array.from({ length: rightSibling - leftSibling + 1 }, (_, i) => leftSibling + i);
+  return [1, 'ellipsis', ...middleRange, 'ellipsis', pageCount];
+}
+
+export function Pagination({
+  page,
+  pageCount,
+  onChange,
+  siblingCount = 1,
+  labels,
+  className,
+  style,
+}: {
   page: number;
   pageCount: number;
   onChange: (page: number) => void;
+  siblingCount?: number;
+  labels?: PaginationLabels;
+  className?: string;
+  style?: CSSProperties;
 }) {
   const nav = useRef<HTMLElement>(null);
+  const items = buildPaginationRange(page, pageCount, siblingCount);
+  const navLabel = labels?.nav ?? 'Pagination';
+  const prevLabel = labels?.previous ?? 'Previous page';
+  const nextLabel = labels?.next ?? 'Next page';
+  const pageLabel = labels?.page ?? ((n: number) => `Page ${n}`);
+  const ellipsisText = labels?.ellipsis ?? '…';
+
   return (
-    <nav ref={nav} aria-label="Pagination" style={{ ...row, gap: 2, flexWrap: 'wrap', fontVariantNumeric: 'tabular-nums' }}>
+    <nav ref={nav} aria-label={navLabel} className={clsx('j-pagination', className)} style={style}>
       <IconButton
         variant="ghost"
-        label="Previous page"
+        label={prevLabel}
         disabled={page <= 1 || pageCount < 1}
         onClick={() => onChange(page - 1)}
       >
         <ChevronLeft size={14} aria-hidden="true" />
       </IconButton>
-      {Array.from({ length: pageCount }, (_, index) => {
-        const number = index + 1;
+      {items.map((item, idx) => {
+        if (item === 'ellipsis') {
+          return (
+            <span key={`ellipsis-${idx}`} className="j-pagination-ellipsis" aria-hidden="true">
+              {ellipsisText}
+            </span>
+          );
+        }
         return (
           <Button
-            key={number}
+            key={item}
             size="sm"
-            style={{ minWidth: 30, paddingInline: 5 }}
-            variant={number === page ? 'primary' : 'ghost'}
-            aria-label={`Page ${number}`}
-            aria-current={number === page ? 'page' : undefined}
-            data-page={number}
+            className="j-pagination-btn"
+            variant={item === page ? 'primary' : 'ghost'}
+            aria-label={pageLabel(item)}
+            aria-current={item === page ? 'page' : undefined}
+            data-page={item}
             onKeyDown={(event) => {
-              const next = { ArrowRight: number + 1, ArrowLeft: number - 1, Home: 1, End: pageCount }[event.key];
-              if (next === undefined) return;
+              const buttons = Array.from(nav.current?.querySelectorAll<HTMLButtonElement>('[data-page]') ?? []);
+              const currentIdx = buttons.indexOf(event.currentTarget);
+              if (currentIdx < 0) return;
+              let target: HTMLButtonElement | undefined;
+              if (event.key === 'ArrowRight') target = buttons[currentIdx + 1];
+              else if (event.key === 'ArrowLeft') target = buttons[currentIdx - 1];
+              else if (event.key === 'Home') target = buttons[0];
+              else if (event.key === 'End') target = buttons.at(-1);
+              else return;
               event.preventDefault();
-              nav.current?.querySelector<HTMLButtonElement>(`[data-page="${next}"]`)?.focus();
+              target?.focus();
             }}
-            onClick={() => onChange(number)}
+            onClick={() => onChange(item)}
           >
-            {number}
+            {item}
           </Button>
         );
       })}
       <IconButton
         variant="ghost"
-        label="Next page"
+        label={nextLabel}
         disabled={page >= pageCount}
         onClick={() => onChange(page + 1)}
       >
@@ -712,21 +836,50 @@ export function NavPagination({ id = 'nav-pagination' }: { id?: string } = {}) {
   );
 }
 
-type AlertTone = 'ok' | 'warn' | 'danger';
+export type AlertTone = 'neutral' | 'info' | 'ok' | 'warn' | 'danger';
 
 export function Alert({
-  tone, children, className, style, role = tone === 'danger' ? 'alert' : 'status', ...rest
-}: HTMLAttributes<HTMLDivElement> & { tone: AlertTone }) {
-  const Icon = tone === 'ok' ? Info : AlertCircle;
+  tone = 'neutral', children, className, style, role = tone === 'danger' ? 'alert' : 'status', ...rest
+}: HTMLAttributes<HTMLDivElement> & { tone?: AlertTone }) {
+  const Icon = tone === 'ok' ? CheckCircle2 : tone === 'warn' || tone === 'danger' ? AlertCircle : Info;
   return (
-    <div {...rest} className={clsx('j-alert', className)} data-tone={tone} role={role} style={{
-      justifyContent: 'flex-start', lineHeight: 1.45,
-      background: tone === 'ok' ? 'transparent' : undefined,
-      color: tone === 'ok' ? 'var(--juice-soft)' : undefined,
-      ...style,
-    }}>
-      <Icon size={15} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
-      <div style={{ minWidth: 0, overflowWrap: 'anywhere', color: 'var(--fill-on)' }}>{children}</div>
+    <div {...rest} className={clsx('j-alert', className)} data-tone={tone} role={role} style={style}>
+      <Icon size={15} aria-hidden="true" className="j-alert-icon" />
+      <div className="j-alert-body">{children}</div>
+    </div>
+  );
+}
+
+export type EmptyStateTone = 'neutral' | 'signal' | 'ok' | 'warn' | 'danger';
+
+export type EmptyStateProps = Omit<HTMLAttributes<HTMLDivElement>, 'title'> & {
+  icon?: ReactNode;
+  kicker?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  tone?: EmptyStateTone;
+  actions?: ReactNode;
+};
+
+export function EmptyState({
+  icon,
+  kicker,
+  title,
+  description,
+  tone = 'neutral',
+  actions,
+  children,
+  className,
+  ...rest
+}: EmptyStateProps) {
+  return (
+    <div {...rest} data-tone={tone} className={clsx('j-empty-state', className)}>
+      {icon != null && <div className="j-empty-state-icon" aria-hidden="true">{icon}</div>}
+      {kicker != null && <div className="j-empty-state-kicker">{kicker}</div>}
+      <h3 className="j-empty-state-title">{title}</h3>
+      {description != null && <p className="j-empty-state-desc">{description}</p>}
+      {children}
+      {actions != null && <div className="j-empty-state-actions">{actions}</div>}
     </div>
   );
 }
@@ -792,7 +945,7 @@ export function AlertProgress({ id = 'alert-progress' }: { id?: string } = {}) {
   const database = Math.round(usage * DATABASE_SHARE);
   const assets = usage - database;
   const free = 100 - usage;
-  const tone: AlertTone = usage >= 95 ? 'danger' : usage >= 80 ? 'warn' : 'ok';
+  const tone: keyof typeof QUOTA_MESSAGES = usage >= 95 ? 'danger' : usage >= 80 ? 'warn' : 'ok';
   const segments = [
     { label: 'Database', value: database, color: 'var(--fill-on)' },
     { label: 'Assets', value: assets, color: 'var(--juice-mute)' },

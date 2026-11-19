@@ -122,7 +122,7 @@ export const JUICE_SOUND_CATALOG: Record<
 
 let audioCtx: AudioContext | null = null;
 let noiseBuffer: AudioBuffer | null = null;
-let globalSoundEnabled = true;
+let globalSoundEnabled = false;
 const listeners = new Set<() => void>();
 
 function getAudioContext(): AudioContext | null {

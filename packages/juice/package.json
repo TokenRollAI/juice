@@ -1,6 +1,6 @@
 {
   "name": "@tokenroll/juice",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Tactile, behavior-complete React UI components, Radix & Base UI primitives, AI agent workflows, concentric color-mix tokens, and procedural Web Audio sounds.",
   "license": "MIT",
   "type": "module",
@@ -66,7 +66,8 @@
     },
     "./styles.css": "./dist/styles.css",
     "./tokens.css": "./dist/tokens.css",
-    "./scoped.css": "./dist/scoped.css"
+    "./scoped.css": "./dist/scoped.css",
+    "./layered.css": "./dist/layered.css"
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node ../../scripts/bundle-css.mjs",

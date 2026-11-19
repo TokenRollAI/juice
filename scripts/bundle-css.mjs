@@ -20,10 +20,12 @@ if (globalBase < 0 || scopedBase <= globalBase) throw new Error('Missing Juice C
 
 const tokens = main.slice(0, globalBase).trimEnd();
 const components = parts.join('\n\n').trimEnd();
+const scopedBody = `${main.slice(scopedBase).trimEnd()}\n\n${components}`;
 const bundles = {
   'styles.css': `${main.trimEnd()}\n\n${components}\n`,
   'tokens.css': `${tokens}\n`,
-  'scoped.css': `${tokens}\n\n${main.slice(scopedBase).trimEnd()}\n\n${components}\n`,
+  'scoped.css': `${tokens}\n\n${scopedBody}\n`,
+  'layered.css': `${tokens}\n\n@layer components {\n${scopedBody}\n}\n`,
 };
 
 for (const pkg of ['juice', 'vue']) {

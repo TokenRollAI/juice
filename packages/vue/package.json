@@ -44,7 +44,8 @@
     },
     "./styles.css": "./dist/styles.css",
     "./tokens.css": "./dist/tokens.css",
-    "./scoped.css": "./dist/scoped.css"
+    "./scoped.css": "./dist/scoped.css",
+    "./layered.css": "./dist/layered.css"
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node ../../scripts/bundle-css.mjs",

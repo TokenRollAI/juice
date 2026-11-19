@@ -51,10 +51,17 @@ const MODULES = [
   },
   {
     id: 'composable',
-    aliases: ['compound', 'dialog', 'sheet', 'dropdown', 'tabs', 'toast', 'table', 'avatar', 'chart', 'otp', 'accordion'],
+    aliases: ['compound', 'dialog', 'sheet', 'popover', 'dropdown', 'radio-group', 'surface', 'card', 'tabs', 'toast', 'table', 'avatar', 'chart', 'otp', 'accordion'],
     file: 'components-composable.tsx',
     category: 'Composable App & SaaS Primitives',
-    description: 'Dialog, Sheet, DropdownMenu, Tabs, Accordion, ToastProvider/ToastViewport/createToastManager, Table, Avatar, ChartTooltipContent, ChartLegendContent, OtpInput',
+    description: 'Dialog, Sheet, Popover, DropdownMenu, RadioGroup, RadioGroupItem, Surface, Card, Tabs, Accordion, ToastProvider/ToastViewport/createToastManager, Table, Avatar, ChartTooltipContent, ChartLegendContent, OtpInput',
+  },
+  {
+    id: 'workbench',
+    aliases: ['ai-workbench', 'command-dialog', 'prompt-composer', 'diff-block'],
+    file: 'components-workbench.tsx',
+    category: 'Production AI Workbench Primitives',
+    description: 'CommandDialog, CommandPalettePrimitive, AgentActionCard, AgentStepRow, AgentReasoningBlock, PromptComposer, DiffBlock',
   },
   {
     id: 'radix-primitives',

@@ -1,3 +1,4 @@
+"use client";
 /**
  * Juice Composable Headless Behaviors & Agent/Joplo Bridge
  * Inspired by ui-sdk.dev (@ui-sdk/core) + Joplo Engine Contract.
@@ -12,18 +13,26 @@
  */
 
 import {
+  cloneElement,
   createContext,
+  isValidElement,
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactElement,
   type ReactNode,
+  type Ref,
+  type SyntheticEvent,
 } from 'react';
+import { clsx } from 'clsx';
 import {
   isJuiceSoundEnabled,
   playJuiceSound,
@@ -81,7 +90,7 @@ export type JuiceProviderProps = {
 export function JuiceProvider({
   defaultTheme = 'light',
   defaultFill = 'slab',
-  defaultSound = true,
+  defaultSound,
   defaultAnimate = true,
   theme: controlledTheme,
   fill: controlledFill,
@@ -89,10 +98,17 @@ export function JuiceProvider({
   animate: controlledAnimate,
   children,
 }: JuiceProviderProps) {
+  const parentCtx = useContext(JuiceContext);
   const [internalTheme, setInternalTheme] = useState<JuiceTheme>(defaultTheme);
   const [internalFill, setInternalFill] = useState<JuiceFill>(defaultFill);
   const [internalSound, setInternalSound] = useState<boolean>(() =>
-    controlledSound !== undefined ? controlledSound : defaultSound && isJuiceSoundEnabled(),
+    controlledSound !== undefined
+      ? controlledSound
+      : defaultSound !== undefined
+        ? defaultSound
+        : parentCtx !== null
+          ? parentCtx.sound
+          : isJuiceSoundEnabled(),
   );
   const [internalAnimate, setInternalAnimate] = useState<boolean>(defaultAnimate);
 
@@ -102,8 +118,10 @@ export function JuiceProvider({
   const animate = controlledAnimate ?? internalAnimate;
 
   useEffect(() => {
-    setJuiceSoundEnabled(sound);
-  }, [sound]);
+    if (parentCtx === null || controlledSound !== undefined || defaultSound !== undefined) {
+      setJuiceSoundEnabled(sound);
+    }
+  }, [sound, parentCtx, controlledSound, defaultSound]);
 
   useEffect(() => {
     return subscribeJuiceSound(() => {
@@ -483,4 +501,143 @@ export function useJuiceAgentNode(
       },
     });
   }, [id, type]);
+}
+
+// ---------------------------------------------------------------------------
+// 5. SSR-Safe Layout Effect, Native Reduced Motion, and `asChild` / `render` Slot
+// ---------------------------------------------------------------------------
+
+export const useIsomorphicLayoutEffect = typeof document === 'undefined' ? useEffect : useLayoutEffect;
+
+export function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduced(media.matches);
+    sync();
+    media.addEventListener?.('change', sync);
+    return () => media.removeEventListener?.('change', sync);
+  }, []);
+
+  return reduced;
+}
+
+export type RenderProp<P = Record<string, unknown>> = ReactElement | ((props: P) => ReactElement);
+
+export type SlottableProps<P = Record<string, unknown>> = {
+  asChild?: boolean;
+  render?: RenderProp<P>;
+};
+
+export function assignRef<T>(ref: Ref<T> | undefined, value: T | null): (() => void) | void {
+  if (typeof ref === 'function') return ref(value) ?? undefined;
+  if (ref && typeof ref === 'object') {
+    (ref as { current: T | null }).current = value;
+  }
+}
+
+export function composeRefs<T>(...refs: Array<Ref<T> | undefined>): (node: T | null) => (() => void) | void {
+  return (node: T | null) => {
+    const cleanups: Array<() => void> = [];
+    for (const ref of refs) {
+      const cleanup = assignRef(ref, node);
+      if (typeof cleanup === 'function') cleanups.push(cleanup);
+    }
+    if (cleanups.length > 0) {
+      return () => {
+        for (const cleanup of cleanups) cleanup();
+      };
+    }
+  };
+}
+
+export function chainEvent<E extends SyntheticEvent>(
+  first?: (event: E) => void,
+  second?: (event: E) => void,
+): ((event: E) => void) | undefined {
+  if (!first) return second;
+  if (!second) return first;
+  return (event: E) => {
+    first(event);
+    if (!event.defaultPrevented) second(event);
+  };
+}
+
+type AnyRecord = Record<string, any>;
+
+const CHAINABLE_EVENTS = [
+  'onClick',
+  'onKeyDown',
+  'onKeyUp',
+  'onPointerDown',
+  'onPointerUp',
+  'onPointerEnter',
+  'onPointerLeave',
+  'onPointerMove',
+  'onMouseDown',
+  'onMouseEnter',
+  'onMouseLeave',
+  'onFocus',
+  'onBlur',
+  'onContextMenu',
+] as const;
+
+export function renderSlottedElement<E extends HTMLElement = HTMLElement>(
+  element: ReactElement,
+  slotProps: AnyRecord,
+  ref?: Ref<E>,
+  options?: { asChild?: boolean; children?: ReactNode; wrapChildren?: (childContent: ReactNode) => ReactNode },
+): ReactElement {
+  if (!isValidElement<AnyRecord>(element)) {
+    throw new Error('Slotted component (asChild/render) requires a single valid React element.');
+  }
+  const child = element.props;
+  // React 18 stores ref on the element; React 19 exposes ref on props.
+  const childRef =
+    Object.getOwnPropertyDescriptor(child, 'ref')?.value ??
+    Object.getOwnPropertyDescriptor(element, 'ref')?.value;
+
+  const merged: AnyRecord = { ...slotProps, ...child };
+
+  // Keep ARIA / data attributes from slotProps unless child explicitly overrides them
+  for (const key of Object.keys(slotProps)) {
+    if ((key.startsWith('aria-') || key.startsWith('data-')) && child[key] === undefined) {
+      merged[key] = slotProps[key];
+    }
+  }
+
+  // Only pass `type` when rendering a native `<button>` or when child already defines `type`
+  if (element.type !== 'button' && child.type === undefined) {
+    delete merged.type;
+  } else {
+    merged.type = child.type ?? slotProps.type ?? (element.type === 'button' ? 'button' : undefined);
+  }
+
+  if (slotProps.disabled || child.disabled) {
+    merged.disabled = true;
+  }
+
+  merged.className = clsx(slotProps.className, child.className);
+  if (slotProps.style || child.style) {
+    merged.style = { ...(slotProps.style as CSSProperties), ...(child.style as CSSProperties) };
+  }
+
+  for (const evt of CHAINABLE_EVENTS) {
+    if (child[evt] && slotProps[evt]) {
+      merged[evt] = chainEvent(child[evt], slotProps[evt]);
+    } else if (slotProps[evt]) {
+      merged[evt] = slotProps[evt];
+    }
+  }
+
+  const baseChildren = options?.asChild ? child.children : (options?.children ?? child.children);
+  merged.children = options?.wrapChildren ? options.wrapChildren(baseChildren) : baseChildren;
+  merged.ref = composeRefs(childRef, ref);
+
+  return cloneElement(element, merged);
 }

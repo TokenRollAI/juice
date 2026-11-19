@@ -1,8 +1,11 @@
+"use client";
 import {
+  createContext,
+  forwardRef,
   useCallback,
+  useContext,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +16,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
+  type Ref,
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -31,13 +35,23 @@ import {
   Share2,
   X,
 } from 'lucide-react';
-import { useJuice, useJuiceAgentNode, useRovingFocus } from './behaviors.tsx';
+import {
+  composeRefs,
+  renderSlottedElement,
+  useControllableState,
+  useIsomorphicLayoutEffect,
+  useJuice,
+  useJuiceAgentNode,
+  useRovingFocus,
+  type SlottableProps,
+} from './behaviors.tsx';
 import { Badge, Kbd, SegmentedControl, Switch } from './components.tsx';
 
 export type FloatingPlacement =
   | 'bottom-start' | 'bottom-end' | 'bottom' | 'bottom-center'
   | 'top-start' | 'top-end' | 'top' | 'top-center'
-  | 'right-start' | 'left-start';
+  | 'right-start' | 'right-end' | 'right' | 'right-center'
+  | 'left-start' | 'left-end' | 'left' | 'left-center';
 
 export type AnchorRect = {
   left: number;
@@ -67,6 +81,7 @@ export function placeFloating(
   const [preferred, alignment] = placement.split('-') as [keyof typeof opposite, ('start' | 'end' | 'center')?];
   const inset = Number.isFinite(margin) ? Math.max(0, margin) : viewportInset;
   const anchorWidth = anchor.width ?? (anchor.right - anchor.left);
+  const anchorHeight = anchor.height ?? (anchor.bottom - anchor.top);
   const available = {
     top: anchor.top - inset - gap,
     bottom: viewport.height - anchor.bottom - inset - gap,
@@ -87,6 +102,8 @@ export function placeFloating(
     if (alignment === undefined || alignment === 'center') x += (anchorWidth - floating.width) / 2;
     y = side === 'top' ? anchor.top - gap - floating.height : anchor.bottom + gap;
   } else {
+    if (alignment === 'end') y = anchor.bottom - floating.height;
+    if (alignment === undefined || alignment === 'center') y += (anchorHeight - floating.height) / 2;
     x = side === 'left' ? anchor.left - gap - floating.width : anchor.right + gap;
   }
 
@@ -131,6 +148,7 @@ function copyPortalTokens(sourceEl: HTMLElement, targetEl: HTMLElement, win: Win
 function AnchoredLayer({
   anchor,
   placement,
+  gap = 8,
   width,
   surfaceRef,
   tooltip = false,
@@ -141,6 +159,7 @@ function AnchoredLayer({
 }: {
   anchor: HTMLElement;
   placement: FloatingPlacement;
+  gap?: number;
   width?: number | 'auto';
   surfaceRef?: RefObject<HTMLDivElement | null>;
   tooltip?: boolean;
@@ -156,14 +175,14 @@ function AnchoredLayer({
   const [fullscreenHost, setFullscreenHost] = useState(() => doc.fullscreenElement);
   const host = fullscreenHost?.ownerDocument === doc ? fullscreenHost : doc.body;
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const syncHost = () => setFullscreenHost(doc.fullscreenElement);
     syncHost();
     doc.addEventListener('fullscreenchange', syncHost);
     return () => doc.removeEventListener('fullscreenchange', syncHost);
   }, [doc]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const surface = ref.current;
     const win = doc.defaultView;
     if (!surface || !win) return;
@@ -183,6 +202,7 @@ function AnchoredLayer({
         { width: surface.offsetWidth, height: surface.offsetHeight },
         viewport,
         placement,
+        gap,
       );
       surface.style.left = `${x}px`;
       surface.style.top = `${y}px`;
@@ -208,7 +228,7 @@ function AnchoredLayer({
       win.removeEventListener('resize', update);
       win.removeEventListener('scroll', update, true);
     };
-  }, [anchor, animate, doc, fill, host, placement, ref, theme]);
+  }, [anchor, animate, doc, fill, gap, host, placement, ref, theme]);
 
   const inset = viewportInset * 2;
   const {
@@ -290,7 +310,7 @@ export function FloatingPopover({
   ignoreRefsRef.current = ignoreRefs;
   const activeOpen = Boolean(open && anchor);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const currentAnchor = anchorRef.current;
     const el = surface.current;
     if (!activeOpen || !currentAnchor || !el) return;
@@ -418,7 +438,7 @@ export function CenterPopover({
   const [fullscreenHost, setFullscreenHost] = useState<Element | null>(() => doc?.fullscreenElement ?? null);
   const host = doc ? (fullscreenHost?.ownerDocument === doc ? fullscreenHost : doc.body) : null;
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!doc) return;
     const syncHost = () => setFullscreenHost(doc.fullscreenElement);
     syncHost();
@@ -426,7 +446,7 @@ export function CenterPopover({
     return () => doc.removeEventListener('fullscreenchange', syncHost);
   }, [doc]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!open || !doc) return;
     const wrapper = wrapperRef.current;
     const panel = surface.current;
@@ -446,7 +466,7 @@ export function CenterPopover({
     return () => reducedMotion.removeEventListener('change', syncMotion);
   }, [animate, doc, fill, host, open, theme]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const el = surface.current;
     if (!open || !doc || !el) return;
     const previousFocus =
@@ -633,27 +653,295 @@ export function useTooltip(
   ] as const;
 }
 
-export function Tooltip({
-  label,
-  kbd,
-  placement = 'top',
-  delay = 0,
+type TooltipProviderContextValue = {
+  delayDuration: number;
+  skipDelayDuration: number;
+  isInstant: () => boolean;
+  markClosed: () => void;
+  notifyOpen: (id: string) => void;
+  subscribe: (id: string, close: () => void) => () => void;
+};
+
+const TooltipProviderContext = createContext<TooltipProviderContextValue | null>(null);
+
+export function TooltipProvider({
+  delayDuration = 400,
+  skipDelayDuration = 300,
   children,
 }: {
+  delayDuration?: number;
+  skipDelayDuration?: number;
+  children: ReactNode;
+}) {
+  const lastClosedAtRef = useRef<number>(0);
+  const closersRef = useRef<Map<string, () => void>>(new Map());
+
+  const value = useMemo<TooltipProviderContextValue>(
+    () => ({
+      delayDuration,
+      skipDelayDuration,
+      isInstant: () =>
+        skipDelayDuration > 0 && lastClosedAtRef.current > 0 && Date.now() - lastClosedAtRef.current <= skipDelayDuration,
+      markClosed: () => {
+        lastClosedAtRef.current = Date.now();
+      },
+      notifyOpen: (activeId: string) => {
+        for (const [id, close] of closersRef.current) {
+          if (id !== activeId) close();
+        }
+      },
+      subscribe: (id: string, close: () => void) => {
+        closersRef.current.set(id, close);
+        return () => {
+          closersRef.current.delete(id);
+        };
+      },
+    }),
+    [delayDuration, skipDelayDuration],
+  );
+
+  return <TooltipProviderContext.Provider value={value}>{children}</TooltipProviderContext.Provider>;
+}
+
+type TooltipInstanceContextValue = {
+  id: string;
+  open: boolean;
+  anchor: HTMLElement | null;
+  setAnchor: (node: HTMLElement | null) => void;
+  openWithDelay: (instant?: boolean) => void;
+  closeNow: () => void;
+};
+
+const TooltipInstanceContext = createContext<TooltipInstanceContextValue | null>(null);
+
+export type TooltipRootProps = {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  delayDuration?: number;
+  children: ReactNode;
+};
+
+export function TooltipRoot({
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  delayDuration,
+  children,
+}: TooltipRootProps) {
+  const id = useId();
+  const provider = useContext(TooltipProviderContext);
+  const [open, setOpen] = useControllableState({
+    value: controlledOpen,
+    defaultValue: defaultOpen,
+    onChange: onOpenChange,
+  });
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const resolvedDelay = delayDuration ?? provider?.delayDuration ?? 400;
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current !== undefined) {
+      clearTimeout(timerRef.current);
+      timerRef.current = undefined;
+    }
+  }, []);
+
+  const closeNow = useCallback(() => {
+    clearTimer();
+    setOpen(false);
+    provider?.markClosed();
+  }, [clearTimer, provider, setOpen]);
+
+  const openWithDelay = useCallback(
+    (instant = false) => {
+      clearTimer();
+      const shouldBeInstant = instant || resolvedDelay <= 0 || Boolean(provider?.isInstant());
+      if (shouldBeInstant) {
+        provider?.notifyOpen(id);
+        setOpen(true);
+      } else {
+        timerRef.current = setTimeout(() => {
+          timerRef.current = undefined;
+          provider?.notifyOpen(id);
+          setOpen(true);
+        }, resolvedDelay);
+      }
+    },
+    [clearTimer, id, provider, resolvedDelay, setOpen],
+  );
+
+  useEffect(() => {
+    if (!provider) return;
+    return provider.subscribe(id, () => {
+      clearTimer();
+      setOpen(false);
+    });
+  }, [clearTimer, id, provider, setOpen]);
+
+  useEffect(() => clearTimer, [clearTimer]);
+
+  useEffect(() => {
+    if (!open || !anchor) return;
+    const doc = anchor.ownerDocument;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') closeNow();
+    };
+    doc.addEventListener('keydown', onKeyDown);
+    return () => doc.removeEventListener('keydown', onKeyDown);
+  }, [anchor, closeNow, open]);
+
+  const ctx = useMemo<TooltipInstanceContextValue>(
+    () => ({ id, open, anchor, setAnchor, openWithDelay, closeNow }),
+    [id, open, anchor, openWithDelay, closeNow],
+  );
+
+  return <TooltipInstanceContext.Provider value={ctx}>{children}</TooltipInstanceContext.Provider>;
+}
+
+export type TooltipTriggerProps = ButtonHTMLAttributes<HTMLButtonElement> &
+  SlottableProps<ButtonHTMLAttributes<HTMLButtonElement> & { ref?: Ref<HTMLButtonElement> }>;
+
+export const TooltipTrigger = forwardRef<HTMLButtonElement, TooltipTriggerProps>(function TooltipTrigger(
+  { asChild, render, children, onPointerEnter, onPointerLeave, onPointerDown, onFocus, onBlur, onKeyDown, ...rest },
+  forwardedRef,
+) {
+  const ctx = useContext(TooltipInstanceContext);
+  if (!ctx) throw new Error('Tooltip.Trigger requires Tooltip.Root');
+
+  const triggerProps: ButtonHTMLAttributes<HTMLButtonElement> = {
+    ...rest,
+    'aria-describedby': ctx.open ? ctx.id : rest['aria-describedby'],
+    onPointerEnter: (event) => {
+      onPointerEnter?.(event);
+      if (event.pointerType === 'touch') return;
+      ctx.setAnchor(event.currentTarget);
+      ctx.openWithDelay(false);
+    },
+    onPointerLeave: (event) => {
+      onPointerLeave?.(event);
+      ctx.closeNow();
+    },
+    onPointerDown: (event) => {
+      onPointerDown?.(event);
+      ctx.closeNow();
+    },
+    onFocus: (event) => {
+      onFocus?.(event);
+      if (!isFocusVisible(event.currentTarget)) return;
+      ctx.setAnchor(event.currentTarget);
+      ctx.openWithDelay(true);
+    },
+    onBlur: (event) => {
+      onBlur?.(event);
+      ctx.closeNow();
+    },
+    onKeyDown: (event) => {
+      onKeyDown?.(event);
+      if (event.key === 'Escape' && ctx.open) {
+        event.preventDefault();
+        ctx.closeNow();
+      }
+    },
+  };
+
+  const mergedRef = composeRefs<HTMLButtonElement>(
+    (node) => {
+      ctx.setAnchor(node);
+    },
+    forwardedRef,
+  );
+
+  if (typeof render === 'function') {
+    return render({ type: 'button', ...triggerProps, children, ref: mergedRef });
+  }
+  const slotEl = asChild ? children : render;
+  if (slotEl !== undefined) {
+    return renderSlottedElement(slotEl as React.ReactElement, triggerProps, mergedRef, { asChild, children });
+  }
+  return (
+    <button type="button" {...triggerProps} ref={mergedRef}>
+      {children}
+    </button>
+  );
+});
+
+export type TooltipContentProps = HTMLAttributes<HTMLDivElement> & {
+  side?: 'top' | 'bottom' | 'left' | 'right';
+  align?: 'start' | 'center' | 'end';
+  sideOffset?: number;
+  kbd?: string;
+};
+
+export const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(function TooltipContent(
+  { side = 'top', align = 'center', sideOffset = 6, kbd, className, style, children, ...rest },
+  forwardedRef,
+) {
+  const ctx = useContext(TooltipInstanceContext);
+  if (!ctx) throw new Error('Tooltip.Content requires Tooltip.Root');
+  const surfaceRef = useRef<HTMLDivElement>(null);
+
+  useIsomorphicLayoutEffect(() => {
+    if (!forwardedRef) return;
+    if (typeof forwardedRef === 'function') {
+      forwardedRef(surfaceRef.current);
+      return () => forwardedRef(null);
+    }
+    forwardedRef.current = surfaceRef.current;
+    return () => {
+      forwardedRef.current = null;
+    };
+  }, [ctx.open, forwardedRef]);
+
+  if (!ctx.open || !ctx.anchor) return null;
+  const placement = (align === 'center' ? side : `${side}-${align}`) as FloatingPlacement;
+  return (
+    <AnchoredLayer
+      anchor={ctx.anchor}
+      placement={placement}
+      gap={sideOffset}
+      id={ctx.id}
+      surfaceRef={surfaceRef}
+      tooltip
+      surfaceProps={{ ...rest, className, style }}
+    >
+      {children}
+      {kbd && <Kbd className="j-tooltip-kbd">{kbd}</Kbd>}
+    </AnchoredLayer>
+  );
+});
+
+type LegacyTooltipProps = {
   label: ReactNode;
   kbd?: string;
   placement?: FloatingPlacement;
   delay?: number;
   children: (triggerProps: ReturnType<typeof useTooltip>[0]) => ReactNode;
-}) {
+};
+
+function TooltipLegacyInner({ label, kbd, placement = 'top', delay = 0, children }: LegacyTooltipProps) {
   const [triggerProps, content] = useTooltip(label, kbd, { placement, delay });
   return <>{children(triggerProps)}{content}</>;
 }
 
+function TooltipComponent(props: LegacyTooltipProps | TooltipRootProps) {
+  if ('children' in props && typeof props.children === 'function') {
+    return <TooltipLegacyInner {...(props as LegacyTooltipProps)} />;
+  }
+  return <TooltipRoot {...(props as TooltipRootProps)} />;
+}
+
+export const Tooltip = Object.assign(TooltipComponent, {
+  Provider: TooltipProvider,
+  Root: TooltipRoot,
+  Trigger: TooltipTrigger,
+  Content: TooltipContent,
+});
+
 function usePreviewDelay(onPreview: (id: string | null) => void) {
   const timer = useRef<number | undefined>(undefined);
   const latest = useRef(onPreview);
-  useLayoutEffect(() => { latest.current = onPreview; }, [onPreview]);
+  useIsomorphicLayoutEffect(() => { latest.current = onPreview; }, [onPreview]);
 
   const show = useCallback((id: string | null) => {
     window.clearTimeout(timer.current);
@@ -1250,7 +1538,7 @@ export function AdaptiveToolbar({
       .map((entry) => entry.index);
   }, [actions]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const wrap = measureWrap.current;
     if (!wrap) return;
     for (const node of wrap.querySelectorAll('[id], [data-testid]')) {
@@ -1259,7 +1547,7 @@ export function AdaptiveToolbar({
     }
   });
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const viewport = container.current;
     const fullStrip = fullMeasure.current;
     const compactStrip = compactMeasure.current;

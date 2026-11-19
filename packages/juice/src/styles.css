@@ -30,6 +30,7 @@
   --juice-on-ok: #ffffff;
   --juice-warn: #d97706;
   --juice-danger: #dc2626;
+  --juice-info: #0284c7;
   --juice-recessed: #121316;
 
   /* Active Card Fill Context (Slab = light surface, Solid = inverted dark slab) */
@@ -68,6 +69,7 @@
   --juice-on-ok: #08170e;
   --juice-warn: #f59e0b;
   --juice-danger: #f87171;
+  --juice-info: #38bdf8;
   --juice-recessed: #08090b;
   --fill-on: var(--juice-ink);
   --fill-slab: var(--juice-card);
@@ -187,6 +189,16 @@
   color: var(--juice-soft);
   font-variant-numeric: tabular-nums;
 }
+.j-badge[data-size="xs"] {
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10.5px;
+}
+.j-badge[data-size="md"] {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
 .j-badge[data-tone="ok"] {
   background: color-mix(in srgb, var(--juice-ok) 15%, var(--fill-slab));
   color: var(--juice-ok);
@@ -202,6 +214,170 @@
 .j-badge[data-tone="signal"] {
   background: color-mix(in srgb, var(--juice-signal) 14%, var(--fill-slab));
   color: var(--juice-signal);
+}
+.j-badge[data-tone="info"] {
+  background: color-mix(in srgb, var(--juice-info) 15%, var(--fill-slab));
+  color: var(--juice-info);
+}
+.j-badge[data-variant="solid"] {
+  background: var(--fill-on);
+  color: var(--fill-slab);
+}
+.j-badge[data-variant="solid"][data-tone="ok"] {
+  background: var(--juice-ok);
+  color: var(--juice-on-ok);
+}
+.j-badge[data-variant="solid"][data-tone="warn"] {
+  background: var(--juice-warn);
+  color: #ffffff;
+}
+.j-badge[data-variant="solid"][data-tone="danger"] {
+  background: var(--juice-danger);
+  color: #ffffff;
+}
+.j-badge[data-variant="solid"][data-tone="signal"] {
+  background: var(--juice-signal);
+  color: var(--juice-on-signal);
+}
+.j-badge[data-variant="solid"][data-tone="info"] {
+  background: var(--juice-info);
+  color: #ffffff;
+}
+.j-badge[data-variant="outline"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--juice-w20);
+}
+.j-badge[data-variant="outline"][data-tone="ok"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--juice-ok) 45%, transparent);
+}
+.j-badge[data-variant="outline"][data-tone="warn"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--juice-warn) 45%, transparent);
+}
+.j-badge[data-variant="outline"][data-tone="danger"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--juice-danger) 45%, transparent);
+}
+.j-badge[data-variant="outline"][data-tone="signal"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--juice-signal) 45%, transparent);
+}
+.j-badge[data-variant="outline"][data-tone="info"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--juice-info) 45%, transparent);
+}
+
+/* Interactive Tag / Chip */
+.j-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--juice-w6);
+  color: var(--juice-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: background-color 130ms ease, color 130ms ease, box-shadow 130ms ease, transform 120ms var(--juice-out);
+}
+.j-tag[data-size="xs"] {
+  height: 20px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+.j-tag[data-size="md"] {
+  height: 28px;
+  padding: 0 11px;
+  font-size: 12.5px;
+}
+.j-tag[data-interactive="true"] {
+  cursor: pointer;
+}
+.j-tag[data-interactive="true"]:hover:not(:disabled):not([data-disabled="true"]) {
+  background: var(--juice-w12);
+  color: var(--fill-on);
+}
+.j-tag[data-selected="true"] {
+  background: var(--fill-on);
+  color: var(--fill-slab);
+}
+.j-tag[data-tone="signal"]:not([data-selected="true"]) {
+  background: color-mix(in srgb, var(--juice-signal) 14%, var(--fill-slab));
+  color: var(--juice-signal);
+}
+.j-tag[data-tone="ok"]:not([data-selected="true"]) {
+  background: color-mix(in srgb, var(--juice-ok) 14%, var(--fill-slab));
+  color: var(--juice-ok);
+}
+.j-tag[data-tone="warn"]:not([data-selected="true"]) {
+  background: color-mix(in srgb, var(--juice-warn) 14%, var(--fill-slab));
+  color: var(--juice-warn);
+}
+.j-tag[data-tone="danger"]:not([data-selected="true"]) {
+  background: color-mix(in srgb, var(--juice-danger) 14%, var(--fill-slab));
+  color: var(--juice-danger);
+}
+.j-tag[data-tone="info"]:not([data-selected="true"]) {
+  background: color-mix(in srgb, var(--juice-info) 14%, var(--fill-slab));
+  color: var(--juice-info);
+}
+.j-tag:disabled,
+.j-tag[data-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+}
+.j-tag:focus-visible,
+.j-tag-main:focus-visible,
+.j-tag-remove:focus-visible {
+  outline: 2px solid var(--juice-signal);
+  outline-offset: 2px;
+}
+.j-tag-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.j-tag-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: -4px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.72;
+  cursor: pointer;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+.j-tag-remove:hover:enabled {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.j-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.j-toggle-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Segmented Control */
@@ -249,6 +425,7 @@
 
 /* Tactile Switch */
 .j-switch {
+  position: relative;
   display: inline-flex;
   align-items: center;
   width: 40px;
@@ -260,6 +437,16 @@
   background: var(--juice-w12);
   cursor: pointer;
   transition: background-color 200ms ease, transform 140ms var(--juice-out);
+}
+.j-switch::after {
+  content: '';
+  position: absolute;
+  inset: -6px -4px;
+}
+@media (pointer: coarse) {
+  .j-switch::after {
+    inset: -10px -4px;
+  }
 }
 .j-switch[data-checked="true"] {
   background: var(--fill-on);
@@ -286,6 +473,7 @@
 
 /* Tactile Concentric Checkbox (Replaces raw browser <input type="checkbox">) */
 .j-checkbox {
+  position: relative;
   width: 17px;
   height: 17px;
   border-radius: 5.5px;
@@ -300,10 +488,21 @@
   flex-shrink: 0;
   transition: background-color 140ms ease, color 140ms ease, transform 130ms var(--juice-out), box-shadow 140ms ease;
 }
+.j-checkbox::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+@media (pointer: coarse) {
+  .j-checkbox::after {
+    inset: -13.5px;
+  }
+}
 .j-checkbox:hover:enabled {
   background: var(--juice-w20);
 }
-.j-checkbox[data-checked="true"] {
+.j-checkbox[data-checked="true"],
+.j-checkbox[data-indeterminate="true"] {
   background: var(--fill-on);
   color: var(--fill-slab);
   box-shadow: none;
