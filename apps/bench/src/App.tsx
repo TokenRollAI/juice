@@ -7,6 +7,7 @@ import {
   useJuice,
 } from '@tokenroll/juice';
 import { Check, Moon, Search, Sun, Volume2, VolumeX } from 'lucide-react';
+import { JuiceMark } from './brand-mark.tsx';
 import { BLOCK_CATALOG } from './catalog.tsx';
 import { ComponentsPage } from './components-page.tsx';
 import { HomePage } from './home-page.tsx';
@@ -206,9 +207,7 @@ function SiteShell() {
                 navigatePage('home');
               }}
             >
-              <span className="site-brand-mark" aria-hidden="true">
-                J
-              </span>
+              <JuiceMark size={26} className="site-brand-svg" />
               <span className="site-brand-word">Juice</span>
             </button>
 

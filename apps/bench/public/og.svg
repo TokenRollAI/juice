@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#09090b" />
+  <rect x="40" y="40" width="1120" height="550" rx="28" fill="#111113" stroke="#ffffff" stroke-opacity="0.08" />
+
+  <!-- Concentric Juice Mark (scaled 3x -> 96x96 at x=96, y=126) -->
+  <g transform="translate(96 126) scale(3)">
+    <path
+      fill="#fafafa"
+      fill-rule="evenodd"
+      clip-rule="evenodd"
+      d="M11 2H21A9 9 0 0 1 30 11V21A9 9 0 0 1 21 30H11A9 9 0 0 1 2 21V11A9 9 0 0 1 11 2ZM12.2 9.2A2.6 2.6 0 1 0 12.2 14.4A2.6 2.6 0 1 0 12.2 9.2ZM20.5 8.5A2.25 2.25 0 0 0 18.25 10.75V17.75A2.75 2.75 0 0 1 15.5 20.5H12A2.25 2.25 0 0 0 12 25H15.5A7.25 7.25 0 0 0 22.75 17.75V10.75A2.25 2.25 0 0 0 20.5 8.5Z"
+    />
+  </g>
+
+  <text x="218" y="190" fill="#fafafa" font-family="Plus Jakarta Sans, Inter, -apple-system, sans-serif" font-size="44" font-weight="700" letter-spacing="-1.4">Juice UI</text>
+  <text x="96" y="302" fill="#fafafa" font-family="Plus Jakarta Sans, Inter, -apple-system, sans-serif" font-size="58" font-weight="700" letter-spacing="-2.2">Tactile UI components</text>
+  <text x="96" y="370" fill="#fafafa" font-family="Plus Jakarta Sans, Inter, -apple-system, sans-serif" font-size="58" font-weight="700" letter-spacing="-2.2">with physics and sound.</text>
+
+  <text x="96" y="438" fill="#a1a1aa" font-family="Inter, -apple-system, sans-serif" font-size="24">86 interactive blocks · 182 primitives · Concentric color-mix · 3KB Web Audio synth</text>
+
+  <rect x="96" y="486" width="320" height="44" rx="22" fill="#18181b" stroke="#ffffff" stroke-opacity="0.12" />
+  <text x="122" y="515" fill="#fafafa" font-family="JetBrains Mono, ui-monospace, monospace" font-size="18">pnpm add @tokenroll/juice</text>
+
+  <text x="1104" y="516" text-anchor="end" fill="#71717a" font-family="JetBrains Mono, ui-monospace, monospace" font-size="18">juice.tokenroll.ai</text>
+</svg>

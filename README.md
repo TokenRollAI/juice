@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="./docs/logo.svg" width="44" height="44" alt="Juice UI Logo" />
+</p>
+
 # Juice UI (`@tokenroll/juice` & `@tokenroll/juice-vue`)
 
 **Juice UI** is a standalone, domain-agnostic, high-craft UI & micro-interaction system by **TokenRollAI** with **86 live blocks**, **182 exported primitives**, concentric `color-mix` tokens, and a 3KB zero-asset Web Audio synth across React 18/19 and Vue 3.

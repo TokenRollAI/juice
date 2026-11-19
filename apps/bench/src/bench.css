@@ -118,6 +118,17 @@ body {
   flex-shrink: 0;
 }
 
+.site-brand-svg {
+  display: block;
+  color: var(--site-ink);
+  flex-shrink: 0;
+  transition: transform 160ms var(--juice-out);
+}
+
+.site-brand:hover .site-brand-svg {
+  transform: scale(1.06);
+}
+
 .site-brand-mark {
   width: 24px;
   height: 24px;
