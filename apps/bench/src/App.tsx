@@ -8,7 +8,11 @@ import {
 } from '@tokenroll/juice';
 import { Check, Moon, Search, Sun, Volume2, VolumeX } from 'lucide-react';
 import { JuiceMark } from './brand-mark.tsx';
-import { BLOCK_CATALOG } from './catalog.tsx';
+import {
+  DEFAULT_COMPONENT_ID,
+  resolveComponentView,
+  type ComponentViewTarget,
+} from './component-meta.ts';
 import { ComponentsPage } from './components-page.tsx';
 import { HomePage } from './home-page.tsx';
 import {
@@ -23,26 +27,27 @@ import {
 type RouteState = {
   page: SitePage;
   doc: DocSectionId;
-  inspect: string | null;
+  componentView: ComponentViewTarget;
 };
 
 function parseHashRoute(): RouteState {
   if (typeof window === 'undefined') {
-    return { page: 'home', doc: 'introduction', inspect: null };
+    return { page: 'home', doc: 'introduction', componentView: DEFAULT_COMPONENT_ID };
   }
   const raw = window.location.hash.replace(/^#\/?/, '');
   if (!raw) {
-    return { page: 'home', doc: 'introduction', inspect: null };
+    return { page: 'home', doc: 'introduction', componentView: DEFAULT_COMPONENT_ID };
   }
   const [pathPart = '', queryPart = ''] = raw.split('?');
   const segments = pathPart.split('/').filter(Boolean);
   const params = new URLSearchParams(queryPart);
 
   if (segments[0] === 'components') {
+    const slug = segments[1] ? decodeURIComponent(segments[1]) : params.get('inspect');
     return {
       page: 'components',
       doc: 'introduction',
-      inspect: params.get('inspect'),
+      componentView: resolveComponentView(slug),
     };
   }
   if (segments[0] === 'docs') {
@@ -50,20 +55,18 @@ function parseHashRoute(): RouteState {
     const validDoc = DOC_NAV_ITEMS.some((d) => d.id === candidate)
       ? candidate!
       : 'introduction';
-    return { page: 'docs', doc: validDoc, inspect: null };
+    return { page: 'docs', doc: validDoc, componentView: DEFAULT_COMPONENT_ID };
   }
   if (segments[0] === 'sounds') {
-    return { page: 'sounds', doc: 'introduction', inspect: null };
+    return { page: 'sounds', doc: 'introduction', componentView: DEFAULT_COMPONENT_ID };
   }
-  return { page: 'home', doc: 'introduction', inspect: null };
+  return { page: 'home', doc: 'introduction', componentView: DEFAULT_COMPONENT_ID };
 }
 
 function formatHashRoute(route: RouteState): string {
   if (route.page === 'home') return '#/';
   if (route.page === 'components') {
-    return route.inspect
-      ? `#/components?inspect=${encodeURIComponent(route.inspect)}`
-      : '#/components';
+    return `#/components/${encodeURIComponent(route.componentView)}`;
   }
   if (route.page === 'docs') {
     return route.doc === 'introduction' ? '#/docs' : `#/docs/${route.doc}`;
@@ -92,10 +95,20 @@ function SiteShell() {
     html.style.colorScheme = theme;
   }, [theme]);
 
+  // Normalize bare #/components or legacy #/components?inspect=<id> URLs to #/components/<id>
+  useEffect(() => {
+    if (route.page !== 'components') return;
+    const canonical = formatHashRoute(route);
+    if (window.location.hash !== canonical) {
+      window.history.replaceState(null, '', canonical);
+    }
+  }, [route]);
+
   // Listen for browser Back/Forward hash navigation
   useEffect(() => {
     const onHashChange = () => {
       setRoute(parseHashRoute());
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -132,7 +145,7 @@ function SiteShell() {
       commitRoute({
         page,
         doc: route.doc,
-        inspect: page === 'components' ? null : null,
+        componentView: DEFAULT_COMPONENT_ID,
       });
     },
     [commitRoute, route.doc],
@@ -143,36 +156,25 @@ function SiteShell() {
       const valid = DOC_NAV_ITEMS.some((d) => d.id === docId)
         ? (docId as DocSectionId)
         : 'introduction';
-      commitRoute({ page: 'docs', doc: valid, inspect: null });
+      commitRoute({
+        page: 'docs',
+        doc: valid,
+        componentView: route.componentView,
+      });
     },
-    [commitRoute],
+    [commitRoute, route.componentView],
   );
 
-  const jumpToBlockInspector = useCallback(
-    (blockId: string) => {
-      const match = BLOCK_CATALOG.find((b) => b.id === blockId || b.demoId === blockId);
-      const resolvedId = match ? match.id : blockId;
-      commitRoute({ page: 'components', doc: route.doc, inspect: resolvedId }, false);
-      window.setTimeout(() => {
-        const targetAttr = match ? (match.demoId ?? match.id) : resolvedId;
-        const el = document.querySelector(`[data-block-cell="${targetAttr}"]`);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-          window.scrollTo({ top: 0 });
-        }
-      }, 40);
+  const navigateToComponent = useCallback(
+    (targetId: ComponentViewTarget) => {
+      const resolved = resolveComponentView(targetId);
+      commitRoute({
+        page: 'components',
+        doc: route.doc,
+        componentView: resolved,
+      });
     },
     [commitRoute, route.doc],
-  );
-
-  const handleInspectChange = useCallback(
-    (nextInspect: string | null) => {
-      const next: RouteState = { page: 'components', doc: route.doc, inspect: nextInspect };
-      setRoute(next);
-      window.history.replaceState(null, '', formatHashRoute(next));
-    },
-    [route.doc],
   );
 
   const copyFooterSkill = async () => {
@@ -295,14 +297,16 @@ function SiteShell() {
             onBrowseComponents={() => navigatePage('components')}
             onOpenDocs={navigateDoc}
             onOpenSounds={() => navigatePage('sounds')}
-            onInspectBlock={jumpToBlockInspector}
+            onInspectBlock={navigateToComponent}
           />
         )}
 
         {route.page === 'components' && (
           <ComponentsPage
-            inspectedId={route.inspect}
-            onInspectChange={handleInspectChange}
+            activeView={route.componentView}
+            onSelectView={navigateToComponent}
+            onNavigateHome={() => navigatePage('home')}
+            onNavigateDoc={(doc) => navigateDoc(doc)}
             commandOpen={commandOpen}
           />
         )}
@@ -310,8 +314,14 @@ function SiteShell() {
         {route.page === 'docs' && (
           <DocsPage
             activeDoc={route.doc}
-            onSelectDoc={(doc) => commitRoute({ page: 'docs', doc, inspect: null })}
-            onJumpToBlock={jumpToBlockInspector}
+            onSelectDoc={(doc) =>
+              commitRoute({
+                page: 'docs',
+                doc,
+                componentView: route.componentView,
+              })
+            }
+            onJumpToBlock={navigateToComponent}
             onOpenSounds={() => navigatePage('sounds')}
           />
         )}
@@ -373,7 +383,7 @@ function SiteShell() {
         onClose={() => setCommandOpen(false)}
         onNavigatePage={navigatePage}
         onNavigateDoc={(doc) => navigateDoc(doc)}
-        onJumpToBlock={jumpToBlockInspector}
+        onJumpToBlock={navigateToComponent}
       />
     </div>
   );

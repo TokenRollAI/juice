@@ -34,6 +34,7 @@ import {
   X,
 } from 'lucide-react';
 import { BLOCK_CATALOG, type BlockSpec } from './catalog.tsx';
+import { getEnrichedComponent, ORDERED_COMPONENTS } from './component-meta.ts';
 
 export type SitePage = 'home' | 'components' | 'docs' | 'sounds';
 
@@ -332,13 +333,16 @@ export function DocsPage({
           return { ...layer, blocks: layerBlocks };
         }
         const matchedPrims = layer.primitives.filter((p) => p.toLowerCase().includes(q));
-        const matchedBlocks = layerBlocks.filter(
-          (b) =>
+        const matchedBlocks = layerBlocks.filter((b) => {
+          const meta = getEnrichedComponent(b);
+          return (
+            meta.title.toLowerCase().includes(q) ||
             b.source.symbol.toLowerCase().includes(q) ||
             b.name.toLowerCase().includes(q) ||
             b.summary.toLowerCase().includes(q) ||
-            b.id.includes(q),
-        );
+            b.id.includes(q)
+          );
+        });
         if (matchedPrims.length === 0 && matchedBlocks.length === 0) {
           return null;
         }
@@ -847,8 +851,7 @@ import {
             <h1 className="site-doc-h1">API Index (182 Exports · 86 Blocks)</h1>
             <p className="site-doc-lead">
               Search every exported primitive, hook, and interactive block across all 6 layers.
-              Click any block to open it live in <strong>Components</strong> with its Inspector
-              Drawer ready.
+              Click any block to open its dedicated interactive component page.
             </p>
 
             <div className="site-api-filter-row">
@@ -914,23 +917,28 @@ import {
 
                   {layer.blocks.length > 0 && (
                     <div className="site-api-block-grid">
-                      {layer.blocks.map((block) => (
-                        <button
-                          key={block.id}
-                          type="button"
-                          className="site-api-block-btn"
-                          onClick={() => {
-                            playJuiceSound('tap');
-                            onJumpToBlock(block.id);
-                          }}
-                        >
-                          <div style={{ minWidth: 0 }}>
-                            <div className="site-api-block-name">{block.source.symbol}</div>
-                            <div className="site-api-block-desc">{block.gestureLabel}</div>
-                          </div>
-                          <ArrowUpRight size={13} className="site-api-block-arrow" />
-                        </button>
-                      ))}
+                      {layer.blocks.map((block) => {
+                        const meta = getEnrichedComponent(block);
+                        return (
+                          <button
+                            key={block.id}
+                            type="button"
+                            className="site-api-block-btn"
+                            onClick={() => {
+                              playJuiceSound('tap');
+                              onJumpToBlock(block.id);
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div className="site-api-block-name">{meta.title}</div>
+                              <div className="site-api-block-desc">
+                                &lt;{block.source.symbol} /&gt; · {meta.pillarLabel}
+                              </div>
+                            </div>
+                            <ArrowUpRight size={13} className="site-api-block-arrow" />
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </section>
@@ -1246,8 +1254,14 @@ export function CommandPaletteModal({
       {
         kind: 'page',
         id: 'components',
-        label: `Components (${BLOCK_CATALOG.length})`,
-        hint: 'Full Interactive Gallery',
+        label: 'Components',
+        hint: 'Interactive Component Pages',
+      },
+      {
+        kind: 'block',
+        id: 'overview',
+        label: `All Components (${BLOCK_CATALOG.length})`,
+        hint: 'Full Categorized Directory',
       },
       { kind: 'page', id: 'docs', label: 'Documentation', hint: 'Guides & API Index (182)' },
       { kind: 'page', id: 'sounds', label: 'Sounds', hint: '12 Web Audio Synth Recipes' },
@@ -1275,11 +1289,11 @@ export function CommandPaletteModal({
       hint: d.group,
     }));
 
-    const blocks: PaletteItem[] = BLOCK_CATALOG.map((b) => ({
+    const blocks: PaletteItem[] = ORDERED_COMPONENTS.map((entry) => ({
       kind: 'block',
-      id: b.id,
-      label: b.source.symbol,
-      hint: b.gestureLabel,
+      id: entry.block.id,
+      label: entry.title,
+      hint: `${entry.pillarLabel} · <${entry.block.source.symbol} />`,
     }));
 
     const q = query.trim().toLowerCase();

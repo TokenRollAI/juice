@@ -75,7 +75,7 @@ function BentoCell({
           playJuiceSound('tap');
           onInspect(blockId);
         }}
-        title={`Open ${label} in Component Inspector`}
+        title={`Open ${label} component page`}
       >
         <span>{label}</span>
         <ArrowUpRight size={11} />
